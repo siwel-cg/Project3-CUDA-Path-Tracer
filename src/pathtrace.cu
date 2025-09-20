@@ -295,7 +295,7 @@ __global__ void mirrorShader(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 8 - pathSegments[idx].remainingBounces);
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             if (material.emittance > 0.0f) {
@@ -336,8 +336,9 @@ __global__ void diffuseShader(int iter,
         ShadeableIntersection intersection = shadeableIntersections[idx];
         if (intersection.t > 0.0f)
         {
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-            thrust::uniform_real_distribution<float> u01(0, 1);
+            // NOTE THIS RNG USES THE HARD CODED #8 AS MAX NUMBER OF BOUNCES
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 8 - pathSegments[idx].remainingBounces);
+            //thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
@@ -366,7 +367,7 @@ __global__ void diffuseShader(int iter,
             }
         }
         else {
-            pathSegments[idx].color = glm::vec3(0.0f);
+            pathSegments[idx].color = glm::vec3(0.0);
         }
     }
 }
@@ -480,14 +481,6 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         //);
         //iterationComplete = true; // TODO: should be based off stream compaction results.
 
-        /*mirrorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
-            iter,
-            num_paths,
-            dev_intersections,
-            dev_paths,
-            dev_materials
-            );*/
-
         diffuseShader << < numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
@@ -495,12 +488,10 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             dev_paths,
             dev_materials
         );
-        if (depth >= traceDepth) {
+        if (depth > traceDepth) {
             iterationComplete = true; // TODO: should be based off stream compaction results.
         }
        
-        
-
         if (guiData != NULL)
         {
             guiData->TracedDepth = depth;

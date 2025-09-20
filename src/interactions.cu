@@ -98,16 +98,23 @@ __host__ __device__ void scatterRay(
     // CHANGE LATER TO BE BASED OFF OF MATERIAL TYPE
 
     Ray newRay = Ray();
-
-    //DIFFUSE
-    glm::vec3 newRayDir = calculateRandomDirectionInHemisphere(normal, rng);
-    newRay.direction = newRayDir;
-    newRay.origin = intersect + normal * 0.001f;
-
-    //MIRROR
-    //glm::vec3 newRayDir = reflect(normal, pathSegment.ray.direction);
-    //newRay.direction = newRayDir;
-    //newRay.origin = intersect + normal * 0.001f;
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    
+    
+    if (u01(rng) > 0.5) {
+        //DIFFUSE
+        glm::vec3 newRayDir = calculateRandomDirectionInHemisphere(normal, rng);
+        newRay.direction = glm::normalize(newRayDir);
+        newRay.origin = intersect + normal * 0.0001f;
+    }
+    else {
+        //MIRROR
+        glm::vec3 newRayDir = reflect(normal, -glm::normalize(pathSegment.ray.direction));
+        newRay.direction = newRayDir;
+        newRay.origin = intersect + normal * 0.0001f;
+    }
+    
+    
 
     pathSegment.ray = newRay;
     pathSegment.remainingBounces--;
