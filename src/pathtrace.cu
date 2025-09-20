@@ -280,6 +280,96 @@ __global__ void shadeFakeMaterial(
     }
 }
 
+__global__ void mirrorShader(int iter,
+    int num_paths,
+    ShadeableIntersection* shadeableIntersections,
+    PathSegment* pathSegments,
+    Material* materials) {
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths)
+    {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > 0.0f)
+        {
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            if (material.emittance > 0.0f) {
+                pathSegments[idx].color *= (materialColor * material.emittance);
+                return;
+            }
+            else {
+
+                pathSegments[idx].color *= material.color;
+
+                if (pathSegments[idx].remainingBounces <= 0) {
+                    pathSegments[idx].color = glm::vec3(0.0f);
+                    return;
+                }
+                else {
+                    glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                    scatterRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
+                }
+            }
+        }
+        else {
+            pathSegments[idx].color = glm::vec3(0.0f);
+        }
+    }
+
+}
+
+__global__ void diffuseShader(int iter,
+    int num_paths,
+    ShadeableIntersection* shadeableIntersections,
+    PathSegment* pathSegments,
+    Material* materials) {
+    float pi = 3.14159265359;
+    float INV_PI = 1.f / pi;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths)
+    {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > 0.0f)
+        {
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+
+            // If the material indicates that the object was a light, "light" the ray
+            if (material.emittance > 0.0f) {
+                pathSegments[idx].color *= materialColor * material.emittance * INV_PI;
+                return;
+            }
+            else {
+                //glm::vec3 wi = pathSegments[idx].ray.direction;
+                //float lambert =  glm::max(glm::dot(-wi, intersection.surfaceNormal));
+                //lambert /= (2.0 * pi);
+
+                pathSegments[idx].color *= materialColor * INV_PI;
+                glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                scatterRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
+
+                /*if (pathSegments[idx].remainingBounces <= 0) {
+                    pathSegments[idx].color = glm::vec3(0.0f);
+                }
+                else {
+                    
+                }*/
+
+            }
+        }
+        else {
+            pathSegments[idx].color = glm::vec3(0.0f);
+        }
+    }
+}
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
 {
@@ -381,14 +471,35 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
 
-        shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
+        //shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
+        //    iter,
+        //    num_paths,
+        //    dev_intersections,
+        //    dev_paths,
+        //    dev_materials
+        //);
+        //iterationComplete = true; // TODO: should be based off stream compaction results.
+
+        /*mirrorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
+            iter,
+            num_paths,
+            dev_intersections,
+            dev_paths,
+            dev_materials
+            );*/
+
+        diffuseShader << < numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
             dev_intersections,
             dev_paths,
             dev_materials
         );
-        iterationComplete = true; // TODO: should be based off stream compaction results.
+        if (depth >= traceDepth) {
+            iterationComplete = true; // TODO: should be based off stream compaction results.
+        }
+       
+        
 
         if (guiData != NULL)
         {
