@@ -100,8 +100,7 @@ __host__ __device__ void scatterRay(
     Ray newRay = Ray();
     thrust::uniform_real_distribution<float> u01(0, 1);
     
-    
-    if (u01(rng) > 0.5) {
+    if (u01(rng) >  1.f - m.specular.exponent) {
         //DIFFUSE
         glm::vec3 newRayDir = calculateRandomDirectionInHemisphere(normal, rng);
         newRay.direction = glm::normalize(newRayDir);
@@ -113,8 +112,6 @@ __host__ __device__ void scatterRay(
         newRay.direction = newRayDir;
         newRay.origin = intersect + normal * 0.0001f;
     }
-    
-    
 
     pathSegment.ray = newRay;
     pathSegment.remainingBounces--;

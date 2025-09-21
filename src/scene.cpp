@@ -47,17 +47,27 @@ void Scene::loadFromJSON(const std::string& jsonName)
         {
             const auto& col = p["RGB"];
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
+            const auto& spec = p["ROUGHNESS"];
+            newMaterial.specular.exponent = spec;
+            newMaterial.specular.color = glm::vec3(col[0], col[1], col[2]);
         }
         else if (p["TYPE"] == "Emitting")
         {
             const auto& col = p["RGB"];
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
             newMaterial.emittance = p["EMITTANCE"];
+
+            const auto& spec = p["ROUGHNESS"];
+            newMaterial.specular.exponent = spec;
+            newMaterial.specular.color = glm::vec3(col[0], col[1], col[2]);
         }
         else if (p["TYPE"] == "Specular")
         {
             const auto& col = p["RGB"];
+            const auto& spec = p["ROUGHNESS"];
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
+            newMaterial.specular.exponent = spec;
+            newMaterial.specular.color = glm::vec3(col[0], col[1], col[2]);
         }
         MatNameToID[name] = materials.size();
         materials.emplace_back(newMaterial);

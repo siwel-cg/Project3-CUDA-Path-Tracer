@@ -7,6 +7,10 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include <thrust/scan.h>
+
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
@@ -139,6 +143,9 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, x * y, 0);
+    thrust::uniform_real_distribution<float> u01(-0.5, 0.5);
+
     if (x < cam.resolution.x && y < cam.resolution.y) {
         int index = x + (y * cam.resolution.x);
         PathSegment& segment = pathSegments[index];
@@ -151,7 +158,12 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
         );
+        
 
+        // JITTER RAY FOR AA
+        segment.ray.direction.x = segment.ray.direction.x + cam.pixelLength.x * u01(rng);
+        segment.ray.direction.y = segment.ray.direction.y + cam.pixelLength.y * u01(rng);
+        
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
@@ -224,6 +236,48 @@ __global__ void computeIntersections(
             intersections[path_index].surfaceNormal = normal;
         }
     }
+}
+
+
+__device__ float computeIntersectDist(Ray ray, Geom* geoms, int geoms_size) {
+    float t;
+    glm::vec3 intersect_point;
+    glm::vec3 normal;
+    float t_min = FLT_MAX;
+    int hit_geom_index = -1;
+    bool outside = true;
+
+    glm::vec3 tmp_intersect;
+    glm::vec3 tmp_normal;
+
+    // naive parse through global geoms
+
+    for (int i = 0; i < geoms_size; i++)
+    {
+        Geom& geom = geoms[i];
+
+        if (geom.type == CUBE)
+        {
+            t = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+        }
+        else if (geom.type == SPHERE)
+        {
+            t = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+        }
+        // TODO: add more intersection tests here... triangle? metaball? CSG?
+
+        // Compute the minimum t from the intersection tests to determine what
+        // scene geometry object was hit first.
+        if (t > 0.0f && t_min > t)
+        {
+            t_min = t;
+            hit_geom_index = i;
+            intersect_point = tmp_intersect;
+            normal = tmp_normal;
+        }
+    }
+
+    return t_min;
 }
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
@@ -323,11 +377,15 @@ __global__ void mirrorShader(int iter,
 
 }
 
-__global__ void diffuseShader(int iter,
+__global__ void diffuseMirrorMixShader(int iter,
     int num_paths,
     ShadeableIntersection* shadeableIntersections,
     PathSegment* pathSegments,
-    Material* materials) {
+    Material* materials,
+    int depth,
+    Geom* geoms,
+    int geoms_size) {
+
     float pi = 3.14159265359;
     float INV_PI = 1.f / pi;
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -336,8 +394,8 @@ __global__ void diffuseShader(int iter,
         ShadeableIntersection intersection = shadeableIntersections[idx];
         if (intersection.t > 0.0f)
         {
-            // NOTE THIS RNG USES THE HARD CODED #8 AS MAX NUMBER OF BOUNCES
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 8 - pathSegments[idx].remainingBounces);
+    
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
             //thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
@@ -346,33 +404,62 @@ __global__ void diffuseShader(int iter,
             // If the material indicates that the object was a light, "light" the ray
             if (material.emittance > 0.0f) {
                 pathSegments[idx].color *= materialColor * material.emittance * INV_PI;
-                return;
+                //if (depth <= 1) {
+                //    pathSegments[idx].color = glm::normalize(pathSegments[idx].color);
+                //}
+                pathSegments[idx].remainingBounces = 0;
             }
             else {
-                //glm::vec3 wi = pathSegments[idx].ray.direction;
-                //float lambert =  glm::max(glm::dot(-wi, intersection.surfaceNormal));
-                //lambert /= (2.0 * pi);
-
                 pathSegments[idx].color *= materialColor * INV_PI;
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 scatterRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
 
-                /*if (pathSegments[idx].remainingBounces <= 0) {
-                    pathSegments[idx].color = glm::vec3(0.0f);
-                }
-                else {
-                    
-                }*/
-
+                //Ray lightDir = Ray();
+                //lightDir.direction = -glm::normalize(glm::vec3(0.0, 10.0, 0.0) - magic);
+                //lightDir.origin = magic + intersection.surfaceNormal * 0.01f;
+                //float lightDist = glm::length(glm::vec3(0.0, 10.0, 0.0) - magic);
+                //float intersectDist = computeIntersectDist(lightDir, geoms, geoms_size);
+                //
+                //if (abs(lightDist - intersectDist) < 0.01) {
+                //    pathSegments[idx].color *= materialColor * material.emittance * INV_PI;
+                //    return;
+                //}
+                //else {
+                //    pathSegments[idx].color *= glm::vec3(0.0);
+                //    return;
+                //}
             }
         }
         else {
             pathSegments[idx].color = glm::vec3(0.0);
+            pathSegments[idx].remainingBounces = 0;
         }
     }
 }
+
+
+// STREAM COMPACTION BOOL
+struct IsTerminated {
+    __host__ __device__
+        bool operator()(const PathSegment& pathSeg) {
+        return pathSeg.remainingBounces == 0;
+    }
+};
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
+{
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if (index < nPaths)
+    {
+        PathSegment iterationPath = iterationPaths[index];
+        image[iterationPath.pixelIndex] += iterationPath.color;
+    }
+}
+
+// Add the current iteration's output to the overall image
+__global__ void intermediateGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
 {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -438,6 +525,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
+    PathSegment* dev_og_path_end = dev_paths + pixelcount;
     int num_paths = dev_path_end - dev_paths;
 
     // --- PathSegment Tracing Stage ---
@@ -461,7 +549,6 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         );
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
-        depth++;
 
         // TODO:
         // --- Shading Stage ---
@@ -481,16 +568,27 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         //);
         //iterationComplete = true; // TODO: should be based off stream compaction results.
 
-        diffuseShader << < numblocksPathSegmentTracing, blockSize1d >> > (
+        diffuseMirrorMixShader << < numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
             dev_intersections,
             dev_paths,
-            dev_materials
+            dev_materials,
+            depth,
+            dev_geoms,
+            hst_scene->geoms.size()
         );
-        if (depth > traceDepth) {
+
+
+        dev_path_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, IsTerminated());
+        num_paths = dev_path_end - dev_paths;
+        printf("num_paths = %d \n", num_paths);
+
+        if (depth > traceDepth || num_paths <= 0) {
             iterationComplete = true; // TODO: should be based off stream compaction results.
         }
+
+        depth++;
        
         if (guiData != NULL)
         {
