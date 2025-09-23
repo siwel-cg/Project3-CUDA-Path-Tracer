@@ -99,20 +99,19 @@ __host__ __device__ void scatterRay(
 
     Ray newRay = Ray();
     thrust::uniform_real_distribution<float> u01(0, 1);
-    
+    glm::vec3 newRayDir;
     if (u01(rng) >  1.f - m.specular.exponent) {
         //DIFFUSE
-        glm::vec3 newRayDir = calculateRandomDirectionInHemisphere(normal, rng);
-        newRay.direction = glm::normalize(newRayDir);
-        newRay.origin = intersect + normal * 0.0001f;
+        newRayDir = calculateRandomDirectionInHemisphere(normal, rng);
     }
     else {
         //MIRROR
-        glm::vec3 newRayDir = reflect(normal, -glm::normalize(pathSegment.ray.direction));
-        newRay.direction = newRayDir;
-        newRay.origin = intersect + normal * 0.0001f;
+        newRayDir = reflect(normal, -glm::normalize(pathSegment.ray.direction));
+
     }
 
+    newRay.direction = glm::normalize(newRayDir);
+    newRay.origin = intersect + normal * 0.001f;
     pathSegment.ray = newRay;
     pathSegment.remainingBounces--;
 }

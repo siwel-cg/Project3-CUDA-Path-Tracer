@@ -11,3 +11,6 @@ CUDA Path Tracer
 *DO NOT* leave the README to the last minute! It is a crucial part of the
 project, and we will not be able to grade you without a good README.
 
+### Resources
+- [text](https://henrikdahlberg.github.io/2016/08/23/stream-compaction.html)
+- [text](https://nvidia.github.io/cccl/thrust/api/group__stream__compaction_1gaf01d45b30fecba794afae065d625f94f.html)

@@ -7,6 +7,10 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
+#include <thrust/partition.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
+
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/scan.h>
@@ -159,7 +163,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
         );
         
-
         // JITTER RAY FOR AA
         segment.ray.direction.x = segment.ray.direction.x + cam.pixelLength.x * u01(rng);
         segment.ray.direction.y = segment.ray.direction.y + cam.pixelLength.y * u01(rng);
@@ -389,11 +392,15 @@ __global__ void diffuseMirrorMixShader(int iter,
     float pi = 3.14159265359;
     float INV_PI = 1.f / pi;
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
     if (idx < num_paths)
-    {
+    {   
+        if (pathSegments[idx].remainingBounces <= 0) {
+            return;
+        }
         ShadeableIntersection intersection = shadeableIntersections[idx];
         if (intersection.t > 0.0f)
-        {
+        { 
     
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
             //thrust::uniform_real_distribution<float> u01(0, 1);
@@ -403,14 +410,15 @@ __global__ void diffuseMirrorMixShader(int iter,
 
             // If the material indicates that the object was a light, "light" the ray
             if (material.emittance > 0.0f) {
-                pathSegments[idx].color *= materialColor * material.emittance * INV_PI;
-                //if (depth <= 1) {
-                //    pathSegments[idx].color = glm::normalize(pathSegments[idx].color);
-                //}
-                pathSegments[idx].remainingBounces = 0;
+                pathSegments[idx].color *= materialColor * material.emittance;
+
+                if (depth <= 1) {
+                    pathSegments[idx].color = materialColor * material.emittance;
+                }
+                pathSegments[idx].remainingBounces = -1;
             }
             else {
-                pathSegments[idx].color *= materialColor * INV_PI;
+                pathSegments[idx].color *= materialColor;
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 scatterRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
 
@@ -421,28 +429,32 @@ __global__ void diffuseMirrorMixShader(int iter,
                 //float intersectDist = computeIntersectDist(lightDir, geoms, geoms_size);
                 //
                 //if (abs(lightDist - intersectDist) < 0.01) {
-                //    pathSegments[idx].color *= materialColor * material.emittance * INV_PI;
-                //    return;
+                //    pathSegments[idx].color *= materialColor * material.emittance;
                 //}
-                //else {
-                //    pathSegments[idx].color *= glm::vec3(0.0);
-                //    return;
-                //}
+                
             }
         }
         else {
             pathSegments[idx].color = glm::vec3(0.0);
-            pathSegments[idx].remainingBounces = 0;
+            pathSegments[idx].remainingBounces = -1;
         }
     }
 }
 
 
 // STREAM COMPACTION BOOL
-struct IsTerminated {
+struct IsAlive {
     __host__ __device__
         bool operator()(const PathSegment& pathSeg) {
-        return pathSeg.remainingBounces == 0;
+        return pathSeg.remainingBounces >= 0;
+    }
+};
+
+struct IsAliveZip {
+    __host__ __device__
+        bool operator()(const thrust::tuple<PathSegment, ShadeableIntersection>& t) {
+        IsAlive isAlive;
+        return isAlive(thrust::get<0>(t));
     }
 };
 
@@ -458,17 +470,6 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     }
 }
 
-// Add the current iteration's output to the overall image
-__global__ void intermediateGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
-{
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-    if (index < nPaths)
-    {
-        PathSegment iterationPath = iterationPaths[index];
-        image[iterationPath.pixelIndex] += iterationPath.color;
-    }
-}
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -526,11 +527,12 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
     PathSegment* dev_og_path_end = dev_paths + pixelcount;
+    PathSegment* dev_og_paths = dev_paths;
     int num_paths = dev_path_end - dev_paths;
+    const int og_num_paths = dev_path_end - dev_paths;
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
-
     bool iterationComplete = false;
     while (!iterationComplete)
     {
@@ -579,10 +581,13 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             hst_scene->geoms.size()
         );
 
-
-        dev_path_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, IsTerminated());
-        num_paths = dev_path_end - dev_paths;
-        printf("num_paths = %d \n", num_paths);
+        auto zip_begin = thrust::make_zip_iterator(thrust::make_tuple(dev_paths, dev_intersections));
+        auto zip_end = thrust::make_zip_iterator(thrust::make_tuple(dev_paths + num_paths, dev_intersections + num_paths));
+        auto partition_point = thrust::partition(thrust::device,
+            zip_begin, zip_end,
+            IsAliveZip{});
+        num_paths = partition_point - zip_begin;
+        printf("num_paths: %d \n", num_paths);
 
         if (depth > traceDepth || num_paths <= 0) {
             iterationComplete = true; // TODO: should be based off stream compaction results.
@@ -598,7 +603,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+    finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 
