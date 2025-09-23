@@ -90,10 +90,10 @@
         },
         {
             "TYPE":"sphere",
-            "MATERIAL":"specular_white",
+            "MATERIAL":"diffuse_white",
             "TRANS":[-1.0,4.0,-1.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[6.0,6.0,6.0]
+            "SCALE":[3.0,3.0,3.0]
         }
     ]
 }

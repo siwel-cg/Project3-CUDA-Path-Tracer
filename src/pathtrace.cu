@@ -134,6 +134,47 @@ void pathtraceFree()
     checkCUDAError("pathtraceFree");
 }
 
+__device__ float computeIntersectDist(Ray ray, Geom* geoms, int geoms_size) {
+    float t;
+    glm::vec3 intersect_point;
+    glm::vec3 normal;
+    float t_min = FLT_MAX;
+    int hit_geom_index = -1;
+    bool outside = true;
+
+    glm::vec3 tmp_intersect;
+    glm::vec3 tmp_normal;
+
+    // naive parse through global geoms
+
+    for (int i = 0; i < geoms_size; i++)
+    {
+        Geom& geom = geoms[i];
+
+        if (geom.type == CUBE)
+        {
+            t = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+        }
+        else if (geom.type == SPHERE)
+        {
+            t = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+        }
+        // TODO: add more intersection tests here... triangle? metaball? CSG?
+
+        // Compute the minimum t from the intersection tests to determine what
+        // scene geometry object was hit first.
+        if (t > 0.0f && t_min > t)
+        {
+            t_min = t;
+            hit_geom_index = i;
+            intersect_point = tmp_intersect;
+            normal = tmp_normal;
+        }
+    }
+
+    return t_min;
+}
+
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -142,12 +183,41 @@ void pathtraceFree()
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+
+__device__ glm::vec2 uniformDiskConcentric(const glm::vec2& sample)
+{
+
+    float M_PI = 3.14159265359;
+
+    float x = 2.0f * sample[0] - 1.0f;
+    float y = 2.0f * sample[1] - 1.0f;
+
+    float r = 1.f;
+    float a = 0.f;
+
+    if (x == 0 && y == 0) {
+        return glm::vec2(0.f, 0.f);
+    }
+    if (abs(x) > abs(y)) {
+        r *= x;
+        a = (M_PI * 0.25) * (y / x);
+    }
+    else {
+        r *= y;
+        a = (M_PI * 0.5) - ((M_PI * 0.25) * (x / y));
+    }
+
+    return glm::vec2(cos(a) * r, sin(a) * r);
+
+}
+
+__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, float focalDist, float appature)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-    thrust::default_random_engine rng = makeSeededRandomEngine(iter, x * y, 0);
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, x * y, traceDepth);
+
     thrust::uniform_real_distribution<float> u01(-0.5, 0.5);
 
     if (x < cam.resolution.x && y < cam.resolution.y) {
@@ -164,9 +234,35 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         );
         
         // JITTER RAY FOR AA
-        segment.ray.direction.x = segment.ray.direction.x + cam.pixelLength.x * u01(rng);
-        segment.ray.direction.y = segment.ray.direction.y + cam.pixelLength.y * u01(rng);
-        
+        segment.ray.direction += cam.right * cam.pixelLength.x * u01(rng);
+        segment.ray.direction += cam.up * cam.pixelLength.y * u01(rng);
+
+        // DEPTH OF FIELD / THIN LENSE CAMERA
+        float focalDistance = focalDist;
+        float lenseRad = appature;
+        thrust::uniform_real_distribution<float> u01(0.0, 1.0);
+
+        glm::vec3 camForward = glm::normalize(cam.view - cam.position);
+
+        float denom = glm::dot(segment.ray.direction, camForward);
+        if (abs(denom) < 0.0001f) {
+            return;
+        }
+
+        float t = focalDistance / denom;
+        glm::vec3 pFocus_world = segment.ray.origin + t * segment.ray.direction;
+
+        glm::vec2 lensUV = uniformDiskConcentric(glm::vec2(u01(rng), u01(rng)));
+        lensUV *= lenseRad;
+
+        segment.ray.origin = cam.position + cam.right * lensUV.x + cam.up * lensUV.y;
+        segment.ray.direction = glm::normalize(pFocus_world - segment.ray.origin);
+
+
+        // JITTER RAY FOR AA
+        segment.ray.direction += cam.right * cam.pixelLength.x * u01(rng);
+        segment.ray.direction += cam.up * cam.pixelLength.y * u01(rng);
+
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
@@ -241,47 +337,6 @@ __global__ void computeIntersections(
     }
 }
 
-
-__device__ float computeIntersectDist(Ray ray, Geom* geoms, int geoms_size) {
-    float t;
-    glm::vec3 intersect_point;
-    glm::vec3 normal;
-    float t_min = FLT_MAX;
-    int hit_geom_index = -1;
-    bool outside = true;
-
-    glm::vec3 tmp_intersect;
-    glm::vec3 tmp_normal;
-
-    // naive parse through global geoms
-
-    for (int i = 0; i < geoms_size; i++)
-    {
-        Geom& geom = geoms[i];
-
-        if (geom.type == CUBE)
-        {
-            t = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
-        }
-        else if (geom.type == SPHERE)
-        {
-            t = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
-        }
-        // TODO: add more intersection tests here... triangle? metaball? CSG?
-
-        // Compute the minimum t from the intersection tests to determine what
-        // scene geometry object was hit first.
-        if (t > 0.0f && t_min > t)
-        {
-            t_min = t;
-            hit_geom_index = i;
-            intersect_point = tmp_intersect;
-            normal = tmp_normal;
-        }
-    }
-
-    return t_min;
-}
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
@@ -395,7 +450,7 @@ __global__ void diffuseMirrorMixShader(int iter,
     
     if (idx < num_paths)
     {   
-        if (pathSegments[idx].remainingBounces <= 0) {
+        if (pathSegments[idx].remainingBounces < 0) {
             return;
         }
         ShadeableIntersection intersection = shadeableIntersections[idx];
@@ -411,10 +466,6 @@ __global__ void diffuseMirrorMixShader(int iter,
             // If the material indicates that the object was a light, "light" the ray
             if (material.emittance > 0.0f) {
                 pathSegments[idx].color *= materialColor * material.emittance;
-
-                if (depth <= 1) {
-                    pathSegments[idx].color = materialColor * material.emittance;
-                }
                 pathSegments[idx].remainingBounces = -1;
             }
             else {
@@ -422,20 +473,20 @@ __global__ void diffuseMirrorMixShader(int iter,
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 scatterRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
 
-                //Ray lightDir = Ray();
-                //lightDir.direction = -glm::normalize(glm::vec3(0.0, 10.0, 0.0) - magic);
-                //lightDir.origin = magic + intersection.surfaceNormal * 0.01f;
-                //float lightDist = glm::length(glm::vec3(0.0, 10.0, 0.0) - magic);
-                //float intersectDist = computeIntersectDist(lightDir, geoms, geoms_size);
-                //
-                //if (abs(lightDist - intersectDist) < 0.01) {
-                //    pathSegments[idx].color *= materialColor * material.emittance;
-                //}
+                /*Ray lightDir = Ray();
+                lightDir.direction = -glm::normalize(glm::vec3(0.0, 10.0, 0.0) - magic);
+                lightDir.origin = magic + intersection.surfaceNormal * 0.01f;
+                float lightDist = glm::length(glm::vec3(0.0, 10.0, 0.0) - magic);
+                float intersectDist = computeIntersectDist(lightDir, geoms, geoms_size);
+                
+                if (abs(lightDist - intersectDist) < 0.01) {
+                    pathSegments[idx].color *= glm::vec3(1.0) * 5.f;
+                }*/
                 
             }
         }
         else {
-            pathSegments[idx].color = glm::vec3(0.0);
+            pathSegments[idx].color *= glm::vec3(0.0);
             pathSegments[idx].remainingBounces = -1;
         }
     }
@@ -521,7 +572,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 8.0, 0.05);
     checkCUDAError("generate camera ray");
 
     int depth = 0;
@@ -581,13 +632,13 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             hst_scene->geoms.size()
         );
 
+        // STREAM COMPACTION
         auto zip_begin = thrust::make_zip_iterator(thrust::make_tuple(dev_paths, dev_intersections));
         auto zip_end = thrust::make_zip_iterator(thrust::make_tuple(dev_paths + num_paths, dev_intersections + num_paths));
         auto partition_point = thrust::partition(thrust::device,
             zip_begin, zip_end,
             IsAliveZip{});
         num_paths = partition_point - zip_begin;
-        printf("num_paths: %d \n", num_paths);
 
         if (depth > traceDepth || num_paths <= 0) {
             iterationComplete = true; // TODO: should be based off stream compaction results.
