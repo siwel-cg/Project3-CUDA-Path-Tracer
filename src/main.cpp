@@ -64,6 +64,7 @@ void runCuda();
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
 void mousePositionCallback(GLFWwindow* window, double xpos, double ypos);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 std::string currentTimeString()
 {
@@ -219,6 +220,7 @@ bool init()
     glfwSetKeyCallback(window, keyCallback);
     glfwSetCursorPosCallback(window, mousePositionCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    glfwSetScrollCallback(window, scrollCallback);
 
     // Set up GL context
     glewExperimental = GL_TRUE;
@@ -550,4 +552,17 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos)
 
     lastX = xpos;
     lastY = ypos;
+}
+
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    if (MouseOverImGuiWindow())
+    {
+        return; // Don't zoom if mouse is over ImGui
+    }
+
+    // Zoom in/out based on scroll direction
+    zoom -= (float)yoffset * 0.5f; // Adjust 0.1f to change zoom sensitivity
+    zoom = std::fmax(0.1f, zoom);   // Prevent zooming too close
+    camchanged = true;
 }
