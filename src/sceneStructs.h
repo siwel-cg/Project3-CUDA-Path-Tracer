@@ -85,3 +85,11 @@ struct ShadeableIntersection
   glm::vec3 surfaceNormal;
   int materialId;
 };
+
+struct EnvironmentMap
+{
+    int width;
+    int height;
+    float* image;
+    int channels;
+};

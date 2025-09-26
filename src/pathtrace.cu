@@ -88,6 +88,7 @@ static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
+static float* dev_EnviMap = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -118,6 +119,28 @@ void pathtraceInit(Scene* scene)
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+    if (hst_scene->enviMap != nullptr && hst_scene->enviMap->image != nullptr) {
+        int enviSize = hst_scene->enviMap->width * hst_scene->enviMap->height * hst_scene->enviMap->channels;
+        printf("Loading environment map: %dx%d, %d channels, %d total floats\n",
+            hst_scene->enviMap->width, hst_scene->enviMap->height, hst_scene->enviMap->channels, enviSize);
+
+        if (enviSize > 0) {
+            cudaMalloc(&dev_EnviMap, enviSize * sizeof(float));
+            cudaMemcpy(dev_EnviMap, hst_scene->enviMap->image, enviSize * sizeof(float), cudaMemcpyHostToDevice);
+            printf("Environment map successfully copied to GPU\n");
+        }
+
+    }
+    else {
+        dev_EnviMap = nullptr;
+        if (hst_scene->enviMap == nullptr) {
+            printf("No environment map structure found\n");
+        }
+        else {
+            printf("Environment map structure exists but image data is null\n");
+        }
+    }
+    
 
     checkCUDAError("pathtraceInit");
 }
@@ -130,6 +153,10 @@ void pathtraceFree()
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    if (dev_EnviMap != nullptr) {
+        cudaFree(dev_EnviMap);
+        dev_EnviMap = nullptr;
+    }
 
     checkCUDAError("pathtraceFree");
 }
@@ -209,6 +236,44 @@ __device__ glm::vec2 uniformDiskConcentric(const glm::vec2& sample)
 
     return glm::vec2(cos(a) * r, sin(a) * r);
 
+}
+
+__device__ glm::vec2 sampleSphericalMap(glm::vec3 v) {
+    v = glm::normalize(v);
+
+    // Convert to spherical coordinates
+    float theta = atan2f(v.x, v.z);
+    float phi = acosf(glm::clamp(v.y, -1.0f, 1.0f));
+
+    float u = (theta + PI) / (2.0f * PI);
+    float v_coord = phi / PI;
+
+    return glm::vec2(u, v_coord);
+}
+
+__device__ glm::vec3 sampleEnvironmentMap(const glm::vec3& direction, const float* envMap, const int width, const int height) {
+    
+    // Convert direction to UV
+    glm::vec2 uv = sampleSphericalMap(direction);
+    
+    // Convert UV to pixel coordinates
+    int x = (int)(uv.x * width) % width;
+    int y = (int)(uv.y * height) % height;
+    
+    // Handle wrapping for x coordinate
+    if (x < 0) x += width;
+    if (y < 0) y = 0;
+    if (y >= height) y = height - 1;
+    
+    // Calculate index (assuming RGB interleaved format)
+    int index = (y * width + x) * 3;
+    
+    // Sample RGB values
+    return glm::vec3(
+        envMap[index],     // R
+        envMap[index + 1], // G  
+        envMap[index + 2]  // B
+    );
 }
 
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, float focalDist, float appature)
@@ -442,7 +507,8 @@ __global__ void diffuseMirrorMixShader(int iter,
     Material* materials,
     int depth,
     Geom* geoms,
-    int geoms_size) {
+    int geoms_size,
+    float* enviMap, int enviWidth, int enviHeight) {
 
     float pi = 3.14159265359;
     float INV_PI = 1.f / pi;
@@ -486,7 +552,9 @@ __global__ void diffuseMirrorMixShader(int iter,
             }
         }
         else {
-            pathSegments[idx].color *= glm::vec3(0.0);
+            //glm::vec2 uv = sampleSphericalMap(pathSegments[idx].ray.direction);
+            glm::vec3 enviColor = sampleEnvironmentMap(pathSegments[idx].ray.direction, enviMap, enviWidth, enviHeight);
+            pathSegments[idx].color *= enviColor;
             pathSegments[idx].remainingBounces = -1;
         }
     }
@@ -572,15 +640,16 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 4.0, 0.05);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 8.0, 0.0);
     checkCUDAError("generate camera ray");
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
-    PathSegment* dev_og_path_end = dev_paths + pixelcount;
-    PathSegment* dev_og_paths = dev_paths;
     int num_paths = dev_path_end - dev_paths;
-    const int og_num_paths = dev_path_end - dev_paths;
+
+    // ENVI MAP VARIABLES:
+    int hdrHeight = hst_scene->enviMap->height;
+    int hdrWidth = hst_scene->enviMap->width;
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
@@ -620,7 +689,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         //    dev_materials
         //);
         //iterationComplete = true; // TODO: should be based off stream compaction results.
-
+        
         diffuseMirrorMixShader << < numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
@@ -629,7 +698,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             dev_materials,
             depth,
             dev_geoms,
-            hst_scene->geoms.size()
+            hst_scene->geoms.size(),
+            dev_EnviMap, hdrWidth, hdrHeight
         );
 
         // STREAM COMPACTION

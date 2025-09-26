@@ -351,9 +351,11 @@ int main(int argc, char** argv)
     }
 
     const char* sceneFile = argv[1];
+    const char* enviFile = argv[2];
 
     // Load scene file
     scene = new Scene(sceneFile);
+    scene->loadEnvironmentMap(enviFile);
 
     //Create Instance for ImGUIData
     guiData = new GuiDataContainer();

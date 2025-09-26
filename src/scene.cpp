@@ -31,6 +31,18 @@ Scene::Scene(string filename)
     }
 }
 
+void Scene::loadEnvironmentMap(const std::string& hdrName)
+{
+    int width, height, channels;
+    float* data = stbi_loadf(hdrName.c_str(), &width, &height, &channels, 3);
+
+    enviMap = new EnvironmentMap();
+    enviMap->width = width;
+    enviMap->height = height;
+    enviMap->channels = channels;
+    enviMap->image = data;
+} 
+
 void Scene::loadFromJSON(const std::string& jsonName)
 {
     std::ifstream f(jsonName);
@@ -131,4 +143,5 @@ void Scene::loadFromJSON(const std::string& jsonName)
     int arraylen = camera.resolution.x * camera.resolution.y;
     state.image.resize(arraylen);
     std::fill(state.image.begin(), state.image.end(), glm::vec3());
+
 }
