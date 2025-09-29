@@ -5,7 +5,8 @@
         {
             "TYPE":"Emitting",
             "RGB":[1.0,1.0,1.0],
-            "EMITTANCE":5.0
+            "EMITTANCE":5.0,
+            "ROUGHNESS":1.0
         }
     },
     "Camera":

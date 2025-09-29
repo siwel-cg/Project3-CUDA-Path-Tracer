@@ -511,17 +511,26 @@ __global__ void diffuseMirrorMixShader(int iter,
             return;
         }
         ShadeableIntersection intersection = shadeableIntersections[idx];
+        int matId = intersection.materialId;
         if (intersection.t > 0.0f)
-        { 
-    
+        {
+            
+
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
             //thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            // If the material indicates that the object was a light, "light" the ray
-            if (material.emittance > 0.0f) {
+            if (intersection.materialId == 0) {
+                glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                bool activeRay = blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material);
+                if (!activeRay) {
+                    pathSegments[idx].color *= glm::vec3(0.0);
+                    pathSegments[idx].remainingBounces = -1;
+                }
+            }
+            else if (material.emittance > 0.0f) {
                 pathSegments[idx].color *= materialColor * material.emittance;
                 pathSegments[idx].remainingBounces = -1;
             }
@@ -550,7 +559,6 @@ __global__ void diffuseMirrorMixShader(int iter,
         }
     }
 }
-
 
 // STREAM COMPACTION BOOL
 struct IsAlive {

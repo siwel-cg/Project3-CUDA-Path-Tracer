@@ -56,6 +56,11 @@ struct Material
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    struct
+    {
+        float iRad;
+        float oRad;
+    } blackHole;
 };
 
 struct Camera

@@ -1,0 +1,35 @@
+{
+    "Materials":
+    {
+        "blackhole":
+        {
+            "TYPE":"BlackHole",
+            "RGB":[0.0,0.0,0.0],
+            "EMITTANCE":0.0,
+            "ROUGHNESS":1.0,
+            "INNERRAD": 1.0, 
+            "OUTERRAD": 10.0
+        }
+    },
+    "Camera":
+    {
+        "RES":[800,800],
+        "FOVY":45.0,
+        "ITERATIONS":5000,
+        "DEPTH":8,
+        "FILE":"singleBH_V1",
+        "EYE":[0.0,5.0,15.0],
+        "LOOKAT":[0.0,0.0,0.0],
+        "UP":[0.0,1.0,0.0]
+    },
+    "Objects":
+    [
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"blackhole",
+            "TRANS":[0.0,0.0,0.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[10.0,10.0,10.0]
+        }
+    ]
+}

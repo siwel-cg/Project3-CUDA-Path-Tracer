@@ -114,3 +114,82 @@ __host__ __device__ void scatterRay(
     pathSegment.ray = newRay;
     pathSegment.remainingBounces--;
 }
+
+__host__ __device__ glm::vec3 bhAccel(glm::vec3 r, float h2, float M, float w) {
+    float rL = glm::length(r);
+    float radL5 = rL * rL * rL * rL * rL;
+    return (-3.0f * M * h2) * (1.0f / radL5) * r;
+}
+
+__host__ __device__ void rk4Step(glm::vec3& r, glm::vec3& v, float h2, float dt, float M, float w) {
+    // K1
+    glm::vec3 K1r = v;
+    glm::vec3 K1v = bhAccel(r, h2, M, w);
+    
+    // K2
+    glm::vec3 K2r = v + 0.5f * dt * K1v;
+    glm::vec3 K2v = bhAccel(r + 0.5f * dt * K1r, h2, M, w);
+
+    // K3
+    glm::vec3 K3r = v + 0.5f * dt * K2v;
+    glm::vec3 K3v = bhAccel(r + 0.5f * dt * K2r, h2, M, w);
+
+    // K4
+    glm::vec3 K4r = v +  dt * K3v;
+    glm::vec3 K4v = bhAccel(r + dt * K3r, h2, M, w);
+
+    r += (dt / 6.0f) * (K1r + 2.0f * K2r + 2.0f * K3r + K4r);
+    v += (dt / 6.0f) * (K1v + 2.0f * K2v + 2.0f * K3v + K4v);
+}
+
+__host__ __device__ float chooseDt(glm::vec3 r, glm::vec3 v, float h2, float M, float w, float iRad, float oRad) {
+    glm::vec3 a = bhAccel(r, h2, M, w);
+    glm::vec3 vPerp = glm::normalize(v);
+    glm::vec3 aPerp = a - glm::dot(a, vPerp) * vPerp;
+    float dtMin = 0.001f * iRad;
+    float dtMax = 0.1f * oRad;
+    float eps = 0.2f;
+    float amin = 1e-6f;
+    float dt = (eps * glm::length(v)) / glm::max(glm::length(aPerp), amin);
+    return glm::clamp(dt, dtMin, dtMax);
+}
+
+__host__ __device__ bool blackHoleRay(
+    PathSegment& pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material& m
+) {
+    glm::vec3 bhCenter = intersect - normal * m.blackHole.oRad;
+    glm::vec3 r = intersect - bhCenter;
+    glm::vec3 v = glm::normalize(pathSegment.ray.direction);
+    float h2 = glm::length(glm::cross(r, v)) * glm::length(glm::cross(r, v));
+    float M = 0.5 * m.blackHole.iRad;
+    float w = 1.0f;
+    int maxSteps = 1024;
+    float dt = 0.001f;
+
+    Ray newRay = Ray();
+    for (int i = 0; i < maxSteps; i++) {
+        if (glm::length(r) < m.blackHole.iRad) {
+            return false;
+        }
+        if (glm::length(r) > m.blackHole.oRad && glm::dot(r, v) > 0.0f) {
+            newRay.direction = glm::normalize(v);
+            newRay.origin = bhCenter + r;
+            pathSegment.ray = newRay;
+            pathSegment.remainingBounces--;
+            return true;
+        }
+
+        // RH4 STEP
+        dt = chooseDt(r, v, h2, M, w, m.blackHole.iRad, m.blackHole.oRad);
+        rk4Step(r, v, h2, dt, M, w);
+    }
+
+    newRay.direction = glm::normalize(v);
+    newRay.origin = bhCenter + r;
+    newRay.origin += newRay.direction * 0.001f;
+    pathSegment.ray = newRay;
+    return true;
+}
