@@ -356,6 +356,7 @@ int main(int argc, char** argv)
     // Load scene file
     scene = new Scene(sceneFile);
     scene->loadEnvironmentMap(enviFile);
+    //scene->loadBVH();
 
     //Create Instance for ImGUIData
     guiData = new GuiDataContainer();

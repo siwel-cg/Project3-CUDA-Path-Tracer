@@ -56,6 +56,7 @@ __host__ __device__ float boxIntersectionTest(
     return -1;
 }
 
+
 __host__ __device__ float sphereIntersectionTest(
     Geom sphere,
     Ray r,

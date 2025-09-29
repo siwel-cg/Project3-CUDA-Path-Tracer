@@ -109,7 +109,6 @@ __host__ __device__ void scatterRay(
         newRayDir = reflect(normal, -glm::normalize(pathSegment.ray.direction));
 
     }
-
     newRay.direction = glm::normalize(newRayDir);
     newRay.origin = intersect + normal * 0.001f;
     pathSegment.ray = newRay;

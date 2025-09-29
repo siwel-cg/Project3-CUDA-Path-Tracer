@@ -14,3 +14,4 @@ project, and we will not be able to grade you without a good README.
 ### Resources
 - [text](https://henrikdahlberg.github.io/2016/08/23/stream-compaction.html)
 - [text](https://nvidia.github.io/cccl/thrust/api/group__stream__compaction_1gaf01d45b30fecba794afae065d625f94f.html)
+- [text](https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/)

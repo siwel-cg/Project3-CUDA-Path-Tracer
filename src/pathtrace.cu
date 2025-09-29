@@ -121,24 +121,15 @@ void pathtraceInit(Scene* scene)
     // TODO: initialize any extra device memeory you need
     if (hst_scene->enviMap != nullptr && hst_scene->enviMap->image != nullptr) {
         int enviSize = hst_scene->enviMap->width * hst_scene->enviMap->height * hst_scene->enviMap->channels;
-        printf("Loading environment map: %dx%d, %d channels, %d total floats\n",
-            hst_scene->enviMap->width, hst_scene->enviMap->height, hst_scene->enviMap->channels, enviSize);
 
         if (enviSize > 0) {
             cudaMalloc(&dev_EnviMap, enviSize * sizeof(float));
             cudaMemcpy(dev_EnviMap, hst_scene->enviMap->image, enviSize * sizeof(float), cudaMemcpyHostToDevice);
-            printf("Environment map successfully copied to GPU\n");
         }
 
     }
     else {
         dev_EnviMap = nullptr;
-        if (hst_scene->enviMap == nullptr) {
-            printf("No environment map structure found\n");
-        }
-        else {
-            printf("Environment map structure exists but image data is null\n");
-        }
     }
     
 
