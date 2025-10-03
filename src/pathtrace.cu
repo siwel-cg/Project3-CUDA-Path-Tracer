@@ -366,6 +366,9 @@ __global__ void computeIntersections(
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
+            else if (geom.type == DISK) {
+                t = diskIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal);
+            }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
             // Compute the minimum t from the intersection tests to determine what
@@ -522,13 +525,12 @@ __global__ void diffuseMirrorMixShader(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
+            
+
             if (intersection.materialId == 0) {
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
-                bool activeRay = blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material);
-                if (!activeRay) {
-                    pathSegments[idx].color *= glm::vec3(0.0);
-                    pathSegments[idx].remainingBounces = -1;
-                }
+                blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
+
             }
             else if (material.emittance > 0.0f) {
                 pathSegments[idx].color *= materialColor * material.emittance;

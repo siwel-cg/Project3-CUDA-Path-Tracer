@@ -47,8 +47,9 @@ __host__ __device__ void scatterRay(
     const Material& m,
     thrust::default_random_engine& rng);
 
-__host__ __device__  bool blackHoleRay(
+__host__ __device__  void blackHoleRay(
     PathSegment& pathSegment,
     glm::vec3 intersect,
     glm::vec3 normal,
-    const Material& m);
+    const Material& m,
+    thrust::default_random_engine& rng);

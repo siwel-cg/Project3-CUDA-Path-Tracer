@@ -154,14 +154,59 @@ __host__ __device__ float chooseDt(glm::vec3 r, glm::vec3 v, float h2, float M, 
     return glm::clamp(dt, dtMin, dtMax);
 }
 
-__host__ __device__ bool blackHoleRay(
+
+// 2D hash function for pseudorandom gradients
+__host__ __device__ inline glm::vec2 random2(glm::vec2 p) {
+    p = glm::vec2(glm::dot(p, glm::vec2(127.1f, 311.7f)),
+        glm::dot(p, glm::vec2(269.5f, 183.3f)));
+    return glm::fract(glm::sin(p) * 43758.5453123f) * 2.0f - 1.0f;
+}
+
+// 2D Perlin noise
+__host__ __device__ float noise(glm::vec2 x) {
+    // grid
+    glm::vec2 p = glm::floor(x);
+    glm::vec2 w = glm::fract(x);
+
+    // quintic interpolant
+    glm::vec2 u = w * w * w * (w * (w * 6.0f - 15.0f) + 10.0f);
+
+    // gradients
+    glm::vec2 ga = random2(p + glm::vec2(0.0f, 0.0f));
+    glm::vec2 gb = random2(p + glm::vec2(1.0f, 0.0f));
+    glm::vec2 gc = random2(p + glm::vec2(0.0f, 1.0f));
+    glm::vec2 gd = random2(p + glm::vec2(1.0f, 1.0f));
+
+    // projections
+    float va = glm::dot(ga, w - glm::vec2(0.0f, 0.0f));
+    float vb = glm::dot(gb, w - glm::vec2(1.0f, 0.0f));
+    float vc = glm::dot(gc, w - glm::vec2(0.0f, 1.0f));
+    float vd = glm::dot(gd, w - glm::vec2(1.0f, 1.0f));
+
+    // interpolation
+    return va +
+        u.x * (vb - va) +
+        u.y * (vc - va) +
+        u.x * u.y * (va - vb - vc + vd);
+}
+
+__host__ __device__ glm::vec2 swirl(glm::vec2 p, float swirlFactor) {
+    float r = glm::length(p);
+    float theta = glm::atan(p.y, p.x);
+    theta += swirlFactor * r;
+    return glm::vec2(r * glm::cos(theta), r * glm::sin(theta));
+}
+
+__host__ __device__ void blackHoleRay(
     PathSegment& pathSegment,
     glm::vec3 intersect,
     glm::vec3 normal,
-    const Material& m
+    const Material& m,
+    thrust::default_random_engine& rng
 ) {
     glm::vec3 bhCenter = intersect - normal * m.blackHole.oRad;
     glm::vec3 r = intersect - bhCenter;
+    glm::vec3 prevR = r;
     glm::vec3 v = glm::normalize(pathSegment.ray.direction);
     float h2 = glm::length(glm::cross(r, v)) * glm::length(glm::cross(r, v));
     float M = 0.5 * m.blackHole.iRad;
@@ -169,19 +214,45 @@ __host__ __device__ bool blackHoleRay(
     int maxSteps = 1024;
     float dt = 0.001f;
 
+    bool lit = false;
+
     Ray newRay = Ray();
     for (int i = 0; i < maxSteps; i++) {
         if (glm::length(r) < m.blackHole.iRad) {
-            return false;
+            pathSegment.color *= glm::vec3(0.0);
+            pathSegment.remainingBounces = -1;
+            return;
         }
         if (glm::length(r) > m.blackHole.oRad && glm::dot(r, v) > 0.0f) {
             newRay.direction = glm::normalize(v);
             newRay.origin = bhCenter + r;
+            newRay.origin += newRay.direction * 0.001f;
             pathSegment.ray = newRay;
             pathSegment.remainingBounces--;
-            return true;
+            return;
+        }
+        if (prevR.y * r.y < 0 && !lit) {
+            float t = prevR.y / (prevR.y - r.y);
+            glm::vec3 crossingPoint = prevR + t * (r - prevR);
+
+            float distFromCenter = glm::length(crossingPoint);
+            float normalizedDist = (distFromCenter - m.blackHole.iRad) / (m.blackHole.oRad - m.blackHole.iRad);
+            normalizedDist = glm::clamp(normalizedDist, 0.0f, 1.0f);
+
+            glm::vec2 swirlPos = swirl(glm::vec2(crossingPoint.x, crossingPoint.z), 0.6);
+
+            float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
+            shapedFalloff = shapedFalloff * 0.4 + shapedFalloff * noise(swirlPos);
+
+            thrust::uniform_real_distribution<float> u01(0, 1);
+            if (u01(rng) < shapedFalloff) {
+                pathSegment.color *= glm::vec3(16.0, 10.0, 20.0) * shapedFalloff * 6.0f;
+                pathSegment.remainingBounces = -1;
+                return;
+            }
         }
 
+        prevR = r;
         // RH4 STEP
         dt = chooseDt(r, v, h2, M, w, m.blackHole.iRad, m.blackHole.oRad);
         rk4Step(r, v, h2, dt, M, w);
@@ -191,5 +262,6 @@ __host__ __device__ bool blackHoleRay(
     newRay.origin = bhCenter + r;
     newRay.origin += newRay.direction * 0.001f;
     pathSegment.ray = newRay;
-    return true;
+    pathSegment.remainingBounces--;
+    return;
 }

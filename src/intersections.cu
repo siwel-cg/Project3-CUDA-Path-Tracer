@@ -112,3 +112,45 @@ __host__ __device__ float sphereIntersectionTest(
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float diskIntersectionTest(
+    Geom disk,
+    Ray r,
+    glm::vec3& intersectionPoint,
+    glm::vec3& normal)
+{
+
+    glm::vec3 diskCenter = disk.translation; 
+    glm::mat4 rotateY = glm::rotate(glm::mat4(), disk.rotation.y, glm::vec3(0.0, 1.0, 0.0));
+    glm::mat4 rotateX = glm::rotate(rotateY, disk.rotation.x, glm::vec3(1.0, 0.0, 0.0));
+    glm::mat4 rotateZ = glm::rotate(rotateX, disk.rotation.z, glm::vec3(0.0, 0.0, 1.0));
+    glm::vec3 diskNorm = glm::vec3(rotateZ * glm::vec4(0.0, 1.0, 0.0, 0.0));
+
+    float t = 0.0;
+
+    float denom = glm::dot(diskNorm, r.direction);
+    if (abs(denom) > 1e-6) {
+        glm::vec3 p0l0 = diskCenter - r.origin;
+        t = glm::dot(p0l0, diskNorm) / denom;
+    }
+
+
+
+
+    if (t > 0.0) {
+        glm::vec3 p = r.origin + r.direction * t;
+        glm::vec3 v = p - diskCenter;
+        float d2 = glm::dot(v, v);
+
+        if (d2 > disk.scale.x * disk.scale.x) {
+            t = 0.0;
+        }
+    }
+
+    if (t > 0.0) {
+        intersectionPoint = getPointOnRay(r, t);
+        normal = diskNorm;
+    }
+
+    return t;
+}

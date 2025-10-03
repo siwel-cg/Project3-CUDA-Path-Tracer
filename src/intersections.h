@@ -3,6 +3,7 @@
 #include "sceneStructs.h"
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/intersect.hpp>
 
 
@@ -71,3 +72,9 @@ __host__ __device__ float sphereIntersectionTest(
     glm::vec3& intersectionPoint,
     glm::vec3& normal,
     bool& outside);
+
+__host__ __device__ float diskIntersectionTest(
+    Geom disk,
+    Ray r,
+    glm::vec3& intersectionPoint,
+    glm::vec3& normal);
