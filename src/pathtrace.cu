@@ -525,8 +525,6 @@ __global__ void diffuseMirrorMixShader(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            
-
             if (intersection.materialId == 0) {
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
@@ -590,7 +588,6 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     }
 }
 
-
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -641,7 +638,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 8.0, 0.0);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 22.8, 0.4);
     checkCUDAError("generate camera ray");
 
     int depth = 0;

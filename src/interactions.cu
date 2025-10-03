@@ -115,10 +115,18 @@ __host__ __device__ void scatterRay(
     pathSegment.remainingBounces--;
 }
 
+__host__ __device__
+float windowWeight(float r, float oRad, float iRad) {
+    float normalizedDist = (r - iRad) / (oRad - iRad);
+    normalizedDist = glm::clamp(normalizedDist, 0.0f, 1.0f);
+    float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
+    return glm::abs(1.0f - normalizedDist);
+}
+
 __host__ __device__ glm::vec3 bhAccel(glm::vec3 r, float h2, float M, float w) {
     float rL = glm::length(r);
     float radL5 = rL * rL * rL * rL * rL;
-    return (-3.0f * M * h2) * (1.0f / radL5) * r;
+    return (-3.0f * M * h2) * (1.0f / radL5) * r * w;
 }
 
 __host__ __device__ void rk4Step(glm::vec3& r, glm::vec3& v, float h2, float dt, float M, float w) {
@@ -197,6 +205,8 @@ __host__ __device__ glm::vec2 swirl(glm::vec2 p, float swirlFactor) {
     return glm::vec2(r * glm::cos(theta), r * glm::sin(theta));
 }
 
+
+
 __host__ __device__ void blackHoleRay(
     PathSegment& pathSegment,
     glm::vec3 intersect,
@@ -246,12 +256,13 @@ __host__ __device__ void blackHoleRay(
 
             thrust::uniform_real_distribution<float> u01(0, 1);
             if (u01(rng) < shapedFalloff) {
-                pathSegment.color *= glm::vec3(16.0, 10.0, 20.0) * shapedFalloff * 6.0f;
+                pathSegment.color *= glm::vec3(16.0, 10.0, 20.0) * shapedFalloff;// *6.0f;
                 pathSegment.remainingBounces = -1;
                 return;
             }
         }
-
+        
+        w = windowWeight(glm::length(r), m.blackHole.oRad, m.blackHole.iRad);
         prevR = r;
         // RH4 STEP
         dt = chooseDt(r, v, h2, M, w, m.blackHole.iRad, m.blackHole.oRad);
