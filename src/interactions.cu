@@ -224,10 +224,28 @@ __host__ __device__ void blackHoleRay(
     int maxSteps = 1024;
     float dt = 0.001f;
 
-    bool lit = false;
-
     Ray newRay = Ray();
     for (int i = 0; i < maxSteps; i++) {
+        if (prevR.y * r.y < 0.0) {
+            float t = prevR.y / (prevR.y - r.y);
+            glm::vec3 crossingPoint = prevR + t * (r - prevR);
+
+            float distFromCenter = glm::length(crossingPoint);
+            float normalizedDist = (distFromCenter - m.blackHole.iRad) / (m.blackHole.oRad - m.blackHole.iRad);
+            normalizedDist = glm::clamp(normalizedDist, 0.0f, 1.0f);
+
+            glm::vec2 swirlPos = swirl(glm::vec2(crossingPoint.x, crossingPoint.z), 0.4);
+
+            float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
+            shapedFalloff = shapedFalloff  + shapedFalloff * noise(swirlPos);
+
+            thrust::uniform_real_distribution<float> u01(0, 1);
+            if (u01(rng) < shapedFalloff) {
+                pathSegment.color *= m.color * shapedFalloff * m.emittance;
+                pathSegment.remainingBounces = -1;
+                return;
+            }
+        }
         if (glm::length(r) < m.blackHole.iRad) {
             pathSegment.color *= glm::vec3(0.0);
             pathSegment.remainingBounces = -1;
@@ -241,26 +259,7 @@ __host__ __device__ void blackHoleRay(
             pathSegment.remainingBounces--;
             return;
         }
-        if (prevR.y * r.y < 0 && !lit) {
-            float t = prevR.y / (prevR.y - r.y);
-            glm::vec3 crossingPoint = prevR + t * (r - prevR);
-
-            float distFromCenter = glm::length(crossingPoint);
-            float normalizedDist = (distFromCenter - m.blackHole.iRad) / (m.blackHole.oRad - m.blackHole.iRad);
-            normalizedDist = glm::clamp(normalizedDist, 0.0f, 1.0f);
-
-            glm::vec2 swirlPos = swirl(glm::vec2(crossingPoint.x, crossingPoint.z), 0.6);
-
-            float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
-            shapedFalloff = shapedFalloff * 0.4 + shapedFalloff * noise(swirlPos);
-
-            thrust::uniform_real_distribution<float> u01(0, 1);
-            if (u01(rng) < shapedFalloff) {
-                pathSegment.color *= glm::vec3(16.0, 10.0, 20.0) * shapedFalloff;// *6.0f;
-                pathSegment.remainingBounces = -1;
-                return;
-            }
-        }
+        
         
         w = windowWeight(glm::length(r), m.blackHole.oRad, m.blackHole.iRad);
         prevR = r;

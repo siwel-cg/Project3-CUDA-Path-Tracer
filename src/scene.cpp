@@ -277,9 +277,11 @@ void Scene::loadFromJSON(const std::string& jsonName)
         {
             const auto& innerRad = p["INNERRAD"];
             const auto& outerRad = p["OUTERRAD"];
-            newMaterial.color = glm::vec3(0.0);
+            const auto& col = p["RGB"];
+            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
             newMaterial.blackHole.iRad = innerRad;
             newMaterial.blackHole.oRad = outerRad;
+            newMaterial.emittance = p["EMITTANCE"];
         }
         MatNameToID[name] = materials.size();
         materials.emplace_back(newMaterial);

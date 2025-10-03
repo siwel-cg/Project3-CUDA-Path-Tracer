@@ -4,10 +4,10 @@
         "blackhole":
         {
             "TYPE":"BlackHole",
-            "RGB":[0.0,0.0,0.0],
-            "EMITTANCE":0.0,
+            "RGB":[1.0, 0.6, 0.2],
+            "EMITTANCE":5.0,
             "ROUGHNESS":1.0,
-            "INNERRAD": 1.0, 
+            "INNERRAD": 1.5, 
             "OUTERRAD": 20.0
         },
         "orange_light":
@@ -37,34 +37,6 @@
             "RGB":[0.95, 0.95, 0.98],
             "EMITTANCE":0.0,
             "ROUGHNESS":0.0
-        },
-        "gold_metal":
-        {
-            "TYPE":"Diffuse",
-            "RGB":[1.0, 0.8, 0.3],
-            "EMITTANCE":0.0,
-            "ROUGHNESS":0.1
-        },
-        "dark_metal":
-        {
-            "TYPE":"Diffuse",
-            "RGB":[0.2, 0.2, 0.25],
-            "EMITTANCE":0.0,
-            "ROUGHNESS":0.3
-        },
-        "red_matte":
-        {
-            "TYPE":"Diffuse",
-            "RGB":[0.8, 0.1, 0.1],
-            "EMITTANCE":0.0,
-            "ROUGHNESS":0.9
-        },
-        "purple_glossy":
-        {
-            "TYPE":"Diffuse",
-            "RGB":[0.5, 0.2, 0.7],
-            "EMITTANCE":0.0,
-            "ROUGHNESS":0.2
         }
     },
     "Camera":
@@ -77,7 +49,7 @@
         "EYE":[8.0,18.0,12.0],
         "LOOKAT":[0.0,0.0,0.0],
         "UP":[0.0,1.0,0.0],
-        "LENSRADIUS": 0.5,
+        "LENSRADIUS": 0.4,
         "FOCALDIST": 22.8
     },
     "Objects":
@@ -92,121 +64,149 @@
         {
             "TYPE":"sphere",
             "MATERIAL":"orange_light",
-            "TRANS":[-15.0,6.0,-8.0],
+            "TRANS":[-28.0,8.0,-15.0],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[1.5,1.5,1.5]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"blue_light",
-            "TRANS":[12.0,-5.0,10.0],
+            "TRANS":[25.0,-8.0,20.0],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[1.8,1.8,1.8]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"cyan_light",
-            "TRANS":[8.0,12.0,5.0],
+            "TRANS":[18.0,22.0,10.0],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[1.2,1.2,1.2]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"mirror",
-            "TRANS":[-10.0,-3.0,12.0],
+            "TRANS":[-24.0,-4.0,22.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[3.5,3.5,3.5]
+            "SCALE":[5.5,5.5,5.5]
         },
         {
-            "TYPE":"cube",
-            "MATERIAL":"gold_metal",
-            "TRANS":[6.0,-8.0,-6.0],
-            "ROTAT":[30.0,45.0,15.0],
-            "SCALE":[3.0,3.0,3.0]
-        },
-        {
-            "TYPE":"cube",
+            "TYPE":"sphere",
             "MATERIAL":"mirror",
-            "TRANS":[-8.0,10.0,-10.0],
-            "ROTAT":[15.0,60.0,30.0],
-            "SCALE":[2.5,2.5,2.5]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"dark_metal",
-            "TRANS":[14.0,2.0,-12.0],
+            "TRANS":[26.0,6.0,18.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[2.8,2.8,2.8]
-        },
-        {
-            "TYPE":"cube",
-            "MATERIAL":"red_matte",
-            "TRANS":[-12.0,-8.0,6.0],
-            "ROTAT":[45.0,20.0,60.0],
-            "SCALE":[2.0,2.0,2.0]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"purple_glossy",
-            "TRANS":[4.0,9.0,-15.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[2.2,2.2,2.2]
-        },
-        {
-            "TYPE":"cube",
-            "MATERIAL":"dark_metal",
-            "TRANS":[-5.0,-10.0,-8.0],
-            "ROTAT":[60.0,15.0,45.0],
             "SCALE":[1.8,1.8,1.8]
         },
         {
             "TYPE":"sphere",
-            "MATERIAL":"gold_metal",
-            "TRANS":[10.0,5.0,14.0],
+            "MATERIAL":"mirror",
+            "TRANS":[-20.0,22.0,-18.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[4.2,4.2,4.2]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[28.0,3.0,-26.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[2.5,2.5,2.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[-22.0,-18.0,14.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[3.6,3.6,3.6]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[10.0,16.0,-28.0],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[1.5,1.5,1.5]
         },
         {
-            "TYPE":"cube",
-            "MATERIAL":"purple_glossy",
-            "TRANS":[15.0,-6.0,-4.0],
-            "ROTAT":[25.0,80.0,10.0],
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[-12.0,-24.0,-14.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[4.8,4.8,4.8]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[24.0,12.0,26.0],
+            "ROTAT":[0.0,0.0,0.0],
             "SCALE":[2.2,2.2,2.2]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"mirror",
-            "TRANS":[-6.0,8.0,16.0],
+            "TRANS":[30.0,-10.0,-6.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[2.5,2.5,2.5]
+            "SCALE":[3.0,3.0,3.0]
         },
         {
-            "TYPE":"cube",
-            "MATERIAL":"gold_metal",
-            "TRANS":[3.0,-12.0,8.0],
-            "ROTAT":[50.0,30.0,70.0],
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[-16.0,18.0,30.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.2,1.2,1.2]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[8.0,-26.0,16.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[3.8,3.8,3.8]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[-28.0,-12.0,-22.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[2.8,2.8,2.8]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[22.0,26.0,-14.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[4.5,4.5,4.5]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[-8.0,-6.0,32.0],
+            "ROTAT":[0.0,0.0,0.0],
             "SCALE":[1.6,1.6,1.6]
         },
         {
             "TYPE":"sphere",
-            "MATERIAL":"red_matte",
-            "TRANS":[-14.0,-7.0,-12.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[1.8,1.8,1.8]
-        },
-        {
-            "TYPE":"cube",
             "MATERIAL":"mirror",
-            "TRANS":[9.0,14.0,-8.0],
-            "ROTAT":[40.0,55.0,20.0],
-            "SCALE":[1.4,1.4,1.4]
+            "TRANS":[26.0,-22.0,12.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[5.0,5.0,5.0]
         },
         {
             "TYPE":"sphere",
-            "MATERIAL":"dark_metal",
-            "TRANS":[-3.0,-4.0,18.0],
+            "MATERIAL":"mirror",
+            "TRANS":[-26.0,14.0,-24.0],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[2.0,2.0,2.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[16.0,24.0,20.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[3.4,3.4,3.4]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mirror",
+            "TRANS":[-30.0,-8.0,16.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.4,1.4,1.4]
         }
     ]
 }

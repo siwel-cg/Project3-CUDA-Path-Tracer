@@ -7,6 +7,7 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
+#include <thrust/sort.h>
 #include <thrust/partition.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -89,8 +90,13 @@ static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
 static float* dev_EnviMap = NULL;
+static int* dev_matIds = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
+
+thrust::device_ptr<int> dev_thrust_matId;
+thrust::device_ptr<PathSegment> dev_thrust_pathIdx;
+thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections;
 
 void InitDataContainer(GuiDataContainer* imGuiData)
 {
@@ -119,6 +125,8 @@ void pathtraceInit(Scene* scene)
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+    cudaMalloc(&dev_matIds, pixelcount * sizeof(int));
+
     if (hst_scene->enviMap != nullptr && hst_scene->enviMap->image != nullptr) {
         int enviSize = hst_scene->enviMap->width * hst_scene->enviMap->height * hst_scene->enviMap->channels;
 
@@ -324,6 +332,14 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     }
 }
 
+__global__ void fillMaterialId(int num_paths, int* dev_matIds, ShadeableIntersection* dev_intersections) {
+    int path_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (path_index < num_paths)
+    {
+        dev_matIds[path_index] = dev_intersections[path_index].materialId;
+    }
+}
+
 // TODO:
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
@@ -494,7 +510,7 @@ __global__ void mirrorShader(int iter,
 
 }
 
-__global__ void diffuseMirrorMixShader(int iter,
+__global__ void shadeRay(int iter,
     int num_paths,
     ShadeableIntersection* shadeableIntersections,
     PathSegment* pathSegments,
@@ -525,7 +541,7 @@ __global__ void diffuseMirrorMixShader(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == 0) {
+            if (intersection.materialId == -3) {
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
 
@@ -638,12 +654,13 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 22.8, 0.4);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 22.8, 0.0);
     checkCUDAError("generate camera ray");
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
     int num_paths = dev_path_end - dev_paths;
+    int og_num_paths = num_paths;
 
     // ENVI MAP VARIABLES:
     int hdrHeight = hst_scene->enviMap->height;
@@ -688,7 +705,26 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         //);
         //iterationComplete = true; // TODO: should be based off stream compaction results.
         
-        diffuseMirrorMixShader << < numblocksPathSegmentTracing, blockSize1d >> > (
+
+        // SORT RAYS BY MATERIAL ID
+        fillMaterialId << <numblocksPathSegmentTracing, blockSize1d >> > (
+            num_paths, dev_matIds, dev_intersections
+        );
+
+        dev_thrust_matId = thrust::device_pointer_cast(dev_matIds);
+        dev_thrust_pathIdx = thrust::device_pointer_cast(dev_paths);
+        dev_thrust_intersections = thrust::device_pointer_cast(dev_intersections);
+
+        thrust::sort_by_key(
+            dev_thrust_matId,
+            dev_thrust_matId + num_paths,
+            thrust::make_zip_iterator(thrust::make_tuple(
+                dev_thrust_pathIdx,
+                dev_thrust_intersections
+            ))
+        );
+        
+        shadeRay << < numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
             dev_intersections,

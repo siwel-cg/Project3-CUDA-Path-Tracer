@@ -4,11 +4,11 @@
         "blackhole":
         {
             "TYPE":"BlackHole",
-            "RGB":[0.0,0.0,0.0],
-            "EMITTANCE":0.0,
+            "RGB":[0.6, 0.6, 0.89],
+            "EMITTANCE":5.0,
             "ROUGHNESS":1.0,
-            "INNERRAD": 1.0, 
-            "OUTERRAD": 12.0
+            "INNERRAD": 1.5, 
+            "OUTERRAD": 20.0
         },
         "bright_light":
         {
@@ -42,7 +42,7 @@
             "MATERIAL":"blackhole",
             "TRANS":[0.0,0.0,0.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[12.0,12.0,12.0]
+            "SCALE":[20.0,20.0,20.0]
         }
     ]
 }
