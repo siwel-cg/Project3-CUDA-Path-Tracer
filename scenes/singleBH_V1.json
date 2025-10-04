@@ -4,8 +4,8 @@
         "blackhole":
         {
             "TYPE":"BlackHole",
-            "RGB":[0.6, 0.6, 0.89],
-            "EMITTANCE":5.0,
+            "RGB":[0.8, 0.5, 0.89],
+            "EMITTANCE":3.0,
             "ROUGHNESS":1.0,
             "INNERRAD": 1.5, 
             "OUTERRAD": 20.0

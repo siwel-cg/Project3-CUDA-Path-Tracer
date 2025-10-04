@@ -557,7 +557,7 @@ __global__ void shadeRay(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == -3) {
+            if (intersection.materialId == 0) {
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
 
@@ -584,7 +584,6 @@ __global__ void shadeRay(int iter,
             }
         }
         else {
-            //glm::vec2 uv = sampleSphericalMap(pathSegments[idx].ray.direction);
             glm::vec3 enviColor = sampleEnvironmentMap(pathSegments[idx].ray.direction, enviMap, enviWidth, enviHeight);
             pathSegments[idx].color *= enviColor;
             pathSegments[idx].remainingBounces = -1;
@@ -908,7 +907,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
 
     // Retrieve image from GPU
-    cudaMemcpy(hst_scene->state.image.data(), dev_image, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hst_scene->state.image.data(), dev_bloomImage, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
 }
