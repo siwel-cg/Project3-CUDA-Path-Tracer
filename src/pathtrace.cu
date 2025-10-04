@@ -423,6 +423,7 @@ __global__ void computeIntersections(
             // The ray hits something
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+            intersections[path_index].geoId = hit_geom_index;
             intersections[path_index].surfaceNormal = normal;
         }
     }
@@ -546,7 +547,6 @@ __global__ void shadeRay(int iter,
             return;
         }
         ShadeableIntersection intersection = shadeableIntersections[idx];
-        int matId = intersection.materialId;
         if (intersection.t > 0.0f)
         {
             
@@ -557,9 +557,10 @@ __global__ void shadeRay(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == 0) {
+            if (intersection.materialId == -2) {
+                Geom geo = geoms[intersection.geoId];
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
-                blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, material, rng);
+                blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, geo.invTranspose, material, rng);
 
             }
             else if (material.emittance > 0.0f) {
@@ -789,7 +790,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 22.8, 0.0);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 10.0, 0.3);
     checkCUDAError("generate camera ray");
 
     int depth = 0;

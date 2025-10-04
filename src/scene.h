@@ -14,9 +14,10 @@ public:
     Scene(std::string filename);
     void loadEnvironmentMap(const std::string& hdrName);
     void loadBVH();
-    bvhNode buildTree(glm::vec3 min, glm::vec3 max, int idxStart, int idxEndl, int leafSize);
+    bvhNode buildTree(int idxStart, int idxEndl, int leafSize);
 
     std::vector<Geom> geoms;
+    std::vector<glm::vec3> centroids;
     std::vector<Material> materials;
     RenderState state;
     EnvironmentMap* enviMap;

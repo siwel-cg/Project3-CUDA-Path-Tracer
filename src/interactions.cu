@@ -211,6 +211,7 @@ __host__ __device__ void blackHoleRay(
     PathSegment& pathSegment,
     glm::vec3 intersect,
     glm::vec3 normal,
+    glm::mat4 invTrans,
     const Material& m,
     thrust::default_random_engine& rng
 ) {
@@ -223,6 +224,8 @@ __host__ __device__ void blackHoleRay(
     float w = 1.0f;
     int maxSteps = 1024;
     float dt = 0.001f;
+
+    glm::vec3 diskNorm = glm::vec3((invTrans * glm::vec4(0.0, 1.0, 0.0, 0.0)));
 
     Ray newRay = Ray();
     for (int i = 0; i < maxSteps; i++) {
@@ -237,7 +240,7 @@ __host__ __device__ void blackHoleRay(
             glm::vec2 swirlPos = swirl(glm::vec2(crossingPoint.x, crossingPoint.z), 0.4);
 
             float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
-            shapedFalloff = shapedFalloff * 0.5f + shapedFalloff * noise(swirlPos);
+            shapedFalloff = shapedFalloff * 0.75f + shapedFalloff * noise(swirlPos);
 
             thrust::uniform_real_distribution<float> u01(0, 1);
             if (u01(rng) < shapedFalloff) {

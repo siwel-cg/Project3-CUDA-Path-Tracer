@@ -141,14 +141,14 @@ void Scene::loadEnvironmentMap(const std::string& hdrName)
 //    return curNode;
 //}
 
-bvhNode Scene::buildTree(glm::vec3 min, glm::vec3 max, int idxStart, int idxEnd, int leafSize) {
+
+
+bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
     bvhNode curNode;
     curNode.aabbMin = glm::vec3(+FLT_MAX);
     curNode.aabbMax = glm::vec3(-FLT_MAX);
     curNode.startIdx = idxStart;
     curNode.endIdx = idxEnd;
-    
-    std::vector<glm::vec3> centroids = std::vector<glm::vec3>(geoms.size(), glm::vec3());
 
     // CALCULATE BOUNDS
     for (int i = idxStart; i < idxEnd; i++) {
@@ -164,7 +164,7 @@ bvhNode Scene::buildTree(glm::vec3 min, glm::vec3 max, int idxStart, int idxEnd,
         curNode.aabbMin.y = glm::min(curNode.aabbMin.y, translate.y - scale.y);
         curNode.aabbMin.z = glm::min(curNode.aabbMin.z, translate.z - scale.z);
 
-        centroids[bvhGeoIdx[i]] = curGeo.translation;
+        this->centroids[bvhGeoIdx[i]] = curGeo.translation;
     }
 
     if (curNode.endIdx - curNode.startIdx <= leafSize) { // STOP SUBDIV
@@ -186,7 +186,7 @@ bvhNode Scene::buildTree(glm::vec3 min, glm::vec3 max, int idxStart, int idxEnd,
         auto last = bvhGeoIdx.begin() + idxEnd;
 
         auto midIt = std::partition(first, last, [&](int primId) {
-            float c = centroids[primId][maxis];
+            float c = this->centroids[primId][maxis];
             return c < midPos;
             });
         int mid = int(midIt - bvhGeoIdx.begin());
@@ -211,8 +211,8 @@ bvhNode Scene::buildTree(glm::vec3 min, glm::vec3 max, int idxStart, int idxEnd,
         }
         printf("\n");
 
-        bvhNode leftChild = buildTree(curNode.aabbMin, curNode.aabbMax, idxStart, mid - 1, leafSize);
-        bvhNode rightChild = buildTree(curNode.aabbMin, curNode.aabbMax, mid, idxEnd, leafSize);
+        bvhNode leftChild = buildTree(idxStart, mid, leafSize);
+        bvhNode rightChild = buildTree(mid, idxEnd, leafSize);
 
         curNode.leftChild = bvhTree.size();
         bvhTree.push_back(leftChild);
@@ -230,7 +230,7 @@ void Scene::loadBVH() {
         return;
     }
 
-    bvhNode root = buildTree(glm::vec3(1e30f), glm::vec3(-1e30f), 0, bvhGeoIdx.size()-1, 4);
+    bvhNode root = buildTree(0, bvhGeoIdx.size()-1, 1);
     bvhTree.push_back(root);
     this->root = root;
 }
@@ -322,6 +322,12 @@ void Scene::loadFromJSON(const std::string& jsonName)
         bvhGeoIdx.push_back(idx);
         idx++;
     }
+    this->centroids = std::vector<glm::vec3>(geoms.size(), glm::vec3());
+    for (int i = 0; i < geoms.size(); i++) {
+        centroids[i] = geoms[i].translation;
+    }
+    loadBVH();
+
     const auto& cameraData = data["Camera"];
     Camera& camera = state.camera;
     RenderState& state = this->state;
