@@ -24,6 +24,7 @@ public:
 
     // BVH STRUCTURE
     std::vector<bvhNode> bvhTree;
+    std::vector<int> bvhNodeIndex;
     std::vector<int> bvhGeoIdx;
     bvhNode root;
 };

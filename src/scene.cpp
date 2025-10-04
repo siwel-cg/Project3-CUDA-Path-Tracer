@@ -149,6 +149,9 @@ bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
     curNode.aabbMax = glm::vec3(-FLT_MAX);
     curNode.startIdx = idxStart;
     curNode.endIdx = idxEnd;
+    curNode.isLeaf = false;
+    curNode.leftChild = -1;
+    curNode.rightChild = -1;
 
     // CALCULATE BOUNDS
     for (int i = idxStart; i < idxEnd; i++) {
@@ -174,6 +177,8 @@ bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
         return curNode;
     }
     else {
+        curNode.isLeaf = false;
+
         // CALCULATE MID POINT
         glm::vec3 ext = curNode.aabbMax - curNode.aabbMin;
         int maxis = 0;
@@ -206,10 +211,10 @@ bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
                });
         }
 
-        for (int i = 0; i < bvhGeoIdx.size(); i++) {
-            printf("%d, ", bvhGeoIdx.at(i));
-        }
-        printf("\n");
+        //for (int i = 0; i < bvhGeoIdx.size(); i++) {
+        //    printf("%d, ", bvhGeoIdx.at(i));
+        //}
+        //printf("\n");
 
         bvhNode leftChild = buildTree(idxStart, mid, leafSize);
         bvhNode rightChild = buildTree(mid, idxEnd, leafSize);
@@ -230,9 +235,15 @@ void Scene::loadBVH() {
         return;
     }
 
-    bvhNode root = buildTree(0, bvhGeoIdx.size()-1, 1);
     bvhTree.push_back(root);
+    root = buildTree(0, bvhGeoIdx.size() - 1, 17);
     this->root = root;
+
+    printf("Root AABB: min=(%.2f, %.2f, %.2f), max=(%.2f, %.2f, %.2f)\n",
+        root.aabbMin.x, root.aabbMin.y, root.aabbMin.z,
+        root.aabbMax.x, root.aabbMax.y, root.aabbMax.z);
+    printf("Root isLeaf: %d, startIdx: %d, endIdx: %d\n",
+        root.isLeaf, root.startIdx, root.endIdx);
 }
 
 void Scene::loadFromJSON(const std::string& jsonName)
@@ -322,6 +333,7 @@ void Scene::loadFromJSON(const std::string& jsonName)
         bvhGeoIdx.push_back(idx);
         idx++;
     }
+
     this->centroids = std::vector<glm::vec3>(geoms.size(), glm::vec3());
     for (int i = 0; i < geoms.size(); i++) {
         centroids[i] = geoms[i].translation;
