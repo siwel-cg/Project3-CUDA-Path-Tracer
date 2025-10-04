@@ -85,6 +85,9 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution, int iter, glm
 static Scene* hst_scene = NULL;
 static GuiDataContainer* guiData = NULL;
 static glm::vec3* dev_image = NULL;
+static glm::vec3* dev_bloomImage = NULL;
+static glm::vec3* dev_bloomMask = NULL;
+static glm::vec3* dev_bloomMaskBlur = NULL;
 static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
@@ -112,6 +115,15 @@ void pathtraceInit(Scene* scene)
 
     cudaMalloc(&dev_image, pixelcount * sizeof(glm::vec3));
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
+
+    cudaMalloc(&dev_bloomImage, pixelcount * sizeof(glm::vec3));
+    cudaMemset(dev_bloomImage, 0, pixelcount * sizeof(glm::vec3));
+
+    cudaMalloc(&dev_bloomMask, pixelcount * sizeof(glm::vec3));
+    cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
+
+    cudaMalloc(&dev_bloomMaskBlur, pixelcount * sizeof(glm::vec3));
+    cudaMemset(dev_bloomMaskBlur, 0, pixelcount * sizeof(glm::vec3));
 
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
 
@@ -147,11 +159,15 @@ void pathtraceInit(Scene* scene)
 void pathtraceFree()
 {
     cudaFree(dev_image);  // no-op if dev_image is null
+    cudaFree(dev_bloomImage);
+    cudaFree(dev_bloomMask);
     cudaFree(dev_paths);
     cudaFree(dev_geoms);
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    cudaFree(dev_matIds);
+
     if (dev_EnviMap != nullptr) {
         cudaFree(dev_EnviMap);
         dev_EnviMap = nullptr;
@@ -604,6 +620,126 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     }
 }
 
+__global__ void bloomHighPass(int nPaths, PathSegment* iterationPaths, glm::vec3* image, glm::vec3* bloomMask, glm::ivec2 resolution, int iter, float thresh) {
+    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    if (x < resolution.x && y < resolution.y)
+    {
+        int index = x + (y * resolution.x);
+        glm::vec3 color = image[index];
+        //scolor /= float(iter);
+        
+        float brightness = glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+        if (brightness > thresh) {
+            bloomMask[index] = color;
+        }
+        else {
+            bloomMask[index] = glm::vec3(0.0f);
+        }
+    }
+}
+
+__global__ void bloomBlurY(int nPaths, glm::vec3* ibloomMask, glm::vec3* oBloomMask, int imageWidth, int imageHeight) {
+    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    float weight[11] = {
+     0.1247f,  // center
+     0.1226f,  // ±1
+     0.1167f,  // ±2
+     0.1075f,  // ±3
+     0.0957f,  // ±4
+     0.0818f,  // ±5
+     0.0672f,  // ±6
+     0.0530f,  // ±7
+     0.0399f,  // ±8
+     0.0285f,  // ±9
+     0.0193f   // ±10
+    };
+
+    if (x < imageWidth && y < imageHeight)
+    {
+        int index = x + (y * imageWidth);
+        glm::vec3 result = ibloomMask[index] * weight[0];
+        for (int i = 1; i < 11; ++i)
+        {
+            int posIdx = x + ((y + i) * imageWidth);
+            int negIdx = x + ((y - i) * imageWidth);
+
+            if ((y + i) < imageHeight) {
+                result += ibloomMask[posIdx] * weight[i];
+            }
+            if ((y - i) >= 0) {
+                result += ibloomMask[negIdx] * weight[i];
+            }
+
+        }
+        
+        oBloomMask[index] = result;
+    }
+}
+
+__global__ void bloomBlurX(int nPaths, glm::vec3* ibloomMask, glm::vec3* oBloomMask, int imageWidth, int imageHeight) {
+    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    float weight[11] = {
+     0.1247f,  // centers
+     0.1226f,  // ±1
+     0.1167f,  // ±2
+     0.1075f,  // ±3
+     0.0957f,  // ±4
+     0.0818f,  // ±5
+     0.0672f,  // ±6
+     0.0530f,  // ±7
+     0.0399f,  // ±8
+     0.0285f,  // ±9
+     0.0193f   // ±10
+    };
+
+    if (x < imageWidth && y < imageHeight)
+    {
+        int index = x + (y * imageWidth);
+        glm::vec3 result = ibloomMask[index] * weight[0];
+        for (int i = 1; i < 11; ++i)
+        {
+            int posIdx = (x + i) + (y * imageWidth);
+            int negIdx = (x - i) + (y * imageWidth);
+
+            if ((x + i) < imageWidth) {
+                result += ibloomMask[posIdx] * weight[i];
+            }
+            if ((x - i) >= 0) {
+                result += ibloomMask[negIdx] * weight[i];
+            }
+        }
+
+        oBloomMask[index] = result;
+    }
+}
+
+__global__ void bloomBlend(int nPaths, glm::vec3* bloomMask, glm::vec3* image, glm::vec3* dev_bloomImage, int imageWidth, int imageHeight) {
+    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+    int index = x + (y * imageWidth);
+
+    if (x < imageWidth && y < imageHeight)
+    {
+        const float gamma = 2.2;
+        const float exposure = 1.0;
+        glm::vec3 hdrColor = image[index];
+        glm::vec3 bloomColor = bloomMask[index];
+        hdrColor += bloomColor; 
+
+        glm::vec3 result = glm::vec3(1.0f) - exp(-hdrColor * exposure);
+        // also gamma correct while we're at it       
+        result = pow(result, glm::vec3(1.0f / gamma));
+
+        dev_bloomImage[index] = glm::vec3(hdrColor);
+    }
+}
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -761,13 +897,18 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
+    cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
+    bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
+    bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
+    bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
+
+    bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
 
     // Send results to OpenGL buffer for rendering
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
 
     // Retrieve image from GPU
-    cudaMemcpy(hst_scene->state.image.data(), dev_image,
-        pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hst_scene->state.image.data(), dev_image, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
 }
