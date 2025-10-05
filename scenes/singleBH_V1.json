@@ -5,23 +5,15 @@
         {
             "TYPE":"BlackHole",
             "RGB":[0.8, 0.5, 0.89],
-            "EMITTANCE":3.0,
+            "EMITTANCE":5.0,
             "ROUGHNESS":1.0,
             "INNERRAD": 1.5, 
-            "OUTERRAD": 20.0
+            "OUTERRAD": 5.0
         },
-        "bright_light":
-        {
-            "TYPE":"Emitting",
-            "RGB":[1.0, 1.0, 1.0],
-            "EMITTANCE":30.0,
-            "ROUGHNESS":1.0
-        },
-        "diffuse_blue":
-        {
-            "TYPE":"Diffuse",
-            "RGB":[0.3, 0.5, 0.8],
-            "ROUGHNESS":1.0
+        "mirror_chrome": {
+            "TYPE": "Specular",
+            "RGB": [0.98, 0.98, 0.98],
+            "ROUGHNESS": 0.0
         }
     },
     "Camera":
@@ -31,7 +23,7 @@
         "ITERATIONS":5000,
         "DEPTH":8,
         "FILE":"singleBH_V1",
-        "EYE":[0.0,0.0,15.0],
+        "EYE":[0.0,0.0,-15.0],
         "LOOKAT":[0.0,0.0,0.0],
         "UP":[0.0,1.0,0.0]
     },
@@ -41,8 +33,8 @@
             "TYPE":"sphere",
             "MATERIAL":"blackhole",
             "TRANS":[0.0,0.0,0.0],
-            "ROTAT":[30.0,0.0,0.0],
-            "SCALE":[20.0,20.0,20.0]
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[5.0,5.0,5.0]
         }
     ]
 }

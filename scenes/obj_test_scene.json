@@ -1,0 +1,72 @@
+{
+  "Materials": {
+    "light_white": {
+      "TYPE": "Emitting",
+      "RGB": [1.0, 1.0, 1.0],
+      "EMITTANCE": 15.0,
+      "ROUGHNESS": 1.0
+    },
+    "mesh_diffuse": {
+      "TYPE": "Diffuse",
+      "RGB": [0.8, 0.8, 0.8],
+      "ROUGHNESS": 0.5
+    },
+    "light_blue": {
+      "TYPE": "Emitting",
+      "RGB": [0.5, 0.7, 1.0],
+      "EMITTANCE": 12.0,
+      "ROUGHNESS": 1.0
+    },
+    "light_orange": {
+      "TYPE": "Emitting",
+      "RGB": [1.0, 0.6, 0.3],
+      "EMITTANCE": 12.0,
+      "ROUGHNESS": 1.0
+    },
+    "mesh_mirror": {
+      "TYPE": "Specular",
+      "RGB": [0.95, 0.95, 0.95],
+      "ROUGHNESS": 0.0
+    },
+    "mesh_colored": {
+      "TYPE": "Diffuse",
+      "RGB": [0.3, 0.6, 0.8],
+      "ROUGHNESS": 0.4
+    }
+  },
+
+  "Camera": {
+    "RES": [800, 800],
+    "FOVY": 45.0,
+    "ITERATIONS": 5000,
+    "DEPTH": 8,
+    "FILE": "obj_test",
+    "EYE": [0.0, 3.0, 10.0],
+    "LOOKAT": [0.0, 0.0, 0.0],
+    "UP": [0.0, 1.0, 0.0]
+  },
+
+  "Objects": [
+    {
+      "TYPE": "sphere",
+      "MATERIAL": "light_white",
+      "TRANS": [0.0, 8.0, 0.0],
+      "ROTAT": [0.0, 0.0, 0.0],
+      "SCALE": [1.0, 1.0, 1.0]
+    },
+    {
+      "TYPE": "sphere",
+      "MATERIAL": "light_blue",
+      "TRANS": [6.0, 5.0, 4.0],
+      "ROTAT": [0.0, 0.0, 0.0],
+      "SCALE": [0.8, 0.8, 0.8]
+    },
+    {
+      "TYPE": "sphere",
+      "MATERIAL": "light_orange",
+      "TRANS": [-5.0, 6.0, -3.0],
+      "ROTAT": [0.0, 0.0, 0.0],
+      "SCALE": [0.8, 0.8, 0.8]
+    }
+  ]
+}

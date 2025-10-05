@@ -291,13 +291,19 @@ void Scene::loadOBJ(const std::string& objName) {
             glm::vec3 centroid = newTri.triPos1 + newTri.triPos2 + newTri.triPos3;
             centroid /= 3.0f;
 
+            float pos1Rad = glm::length(newTri.triPos1 - centroid);
+            float pos2Rad = glm::length(newTri.triPos2 - centroid);
+            float pos3Rad = glm::length(newTri.triPos3 - centroid);
+
+            float rad = glm::max(pos3Rad, glm::max(pos1Rad, pos2Rad));
+
             index_offset += fv;
 
             newTri.type = TRIANGLE;
             newTri.materialid = 1;
             newTri.translation = centroid;
             newTri.rotation = glm::vec3(0.0);
-            newTri.scale = glm::vec3(0.0);
+            newTri.scale = glm::vec3(rad);
             newTri.transform = utilityCore::buildTransformationMatrix(
                 newTri.translation, newTri.rotation, newTri.scale);
             newTri.inverseTransform = glm::inverse(newTri.transform);

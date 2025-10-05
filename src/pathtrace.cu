@@ -437,12 +437,7 @@ __global__ void computeIntersections(
         glm::vec3 tmp_normal;
 
 
-        // THAKE THIS FOR LOOP AND PUT IT IN THE BVH INTERSECTION TEST PART
-        // THATS HOW YOU GET t
-        // YOU WILL NEED TO PASS IN THE GEO INDEX< INTERSECTION POINT< AND NORMAL AS REFERENCE PARAMETERS
-
-
-        ////
+        //
         //for (int i = 0; i < geoms_size; i++)
         //{
         //    Geom& geom = geoms[i];
@@ -457,6 +452,9 @@ __global__ void computeIntersections(
         //    }
         //    else if (geom.type == DISK) {
         //        t = diskIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal);
+        //    }
+        //    else if (geom.type == TRIANGLE) {
+        //        t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         //    }
         //    // TODO: add more intersection tests here... triangle? metaball? CSG?
         //
@@ -615,7 +613,7 @@ __global__ void shadeRay(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == -2) {
+            if (intersection.materialId == 0) {
                 Geom geo = geoms[intersection.geoId];
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, geo.invTranspose, material, rng);
@@ -966,15 +964,15 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     
     // BLOOM POST PROCESS
 
-    //cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
-    //bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
-    //bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
-    //bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
-    //bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
-    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
+    cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
+    bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
+    bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
+    bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
+    bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
 
     // Send results to OpenGL buffer for rendering
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
 
     // Retrieve image from GPU
     cudaMemcpy(hst_scene->state.image.data(), dev_bloomImage, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
