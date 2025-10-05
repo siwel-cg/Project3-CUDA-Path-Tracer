@@ -352,11 +352,21 @@ int main(int argc, char** argv)
 
     const char* sceneFile = argv[1];
     const char* enviFile = argv[2];
+    const char* objFile = argv[3];
 
     // Load scene file
     scene = new Scene(sceneFile);
     scene->loadEnvironmentMap(enviFile);
-    //scene->loadBVH();
+
+    // load obj file
+    scene->loadOBJ(objFile);
+
+    // BUILD BVH BASED ON GEOMS
+    scene->centroids = std::vector<glm::vec3>(scene->geoms.size(), glm::vec3());
+    for (int i = 0; i < scene->geoms.size(); i++) {
+        scene->centroids[i] = scene->geoms[i].translation;
+    }
+    scene->loadBVH();
 
     //Create Instance for ImGUIData
     guiData = new GuiDataContainer();

@@ -7,6 +7,11 @@
             "RGB":[1.0,1.0,1.0],
             "EMITTANCE":5.0,
             "ROUGHNESS":1.0
+        },
+        "mirror_chrome": {
+            "TYPE": "Specular",
+            "RGB": [0.98, 0.98, 0.98],
+            "ROUGHNESS": 0.0
         }
     },
     "Camera":

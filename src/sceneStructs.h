@@ -13,7 +13,8 @@ enum GeomType
 {
     SPHERE,
     CUBE,
-    DISK
+    DISK,
+    TRIANGLE
 };
 
 struct Ray
@@ -26,6 +27,11 @@ struct Geom
 {
     enum GeomType type;
     int materialid;
+
+    glm::vec3 triPos1;
+    glm::vec3 triPos2;
+    glm::vec3 triPos3;
+
     glm::vec3 translation;
     glm::vec3 rotation;
     glm::vec3 scale;

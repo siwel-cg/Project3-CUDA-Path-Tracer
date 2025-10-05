@@ -363,7 +363,7 @@ __device__ float computeBVHintersectDist(int numGeos, int numNodes, Ray ray, flo
             glm::vec3 tmp_intersect;
             glm::vec3 tmp_normal;
             bool outside = true;
-            float t_test;
+            float tTest;
 
             for (int i = curNode.startIdx; i < curNode.endIdx; i++) {
                 if (i < 0 || i >= numGeos) continue;
@@ -373,17 +373,20 @@ __device__ float computeBVHintersectDist(int numGeos, int numNodes, Ray ray, flo
                 Geom& geom = geoms[geoIdx];
 
                 if (geom.type == SPHERE) {
-                    t_test = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+                    tTest = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
                 }
                 else if (geom.type == CUBE) {
-                    t_test = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+                    tTest = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
                 }
                 else if (geom.type == DISK) {
-                    t_test = diskIntersectionTest(geom, ray, tmp_intersect, tmp_normal);
+                    tTest = diskIntersectionTest(geom, ray, tmp_intersect, tmp_normal);
+                }
+                else if (geom.type == TRIANGLE) {
+                    tTest = triangleIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
                 }
 
-                if (t_test > 0.0f && t_test < t) {
-                    t = t_test;
+                if (tTest > 0.0f && tTest < t) {
+                    t = tTest;
                     hit_geom_index = geoIdx; 
                     intersect_point = tmp_intersect;
                     normal = tmp_normal;
@@ -612,7 +615,7 @@ __global__ void shadeRay(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == 0) {
+            if (intersection.materialId == -2) {
                 Geom geo = geoms[intersection.geoId];
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, geo.invTranspose, material, rng);
@@ -845,7 +848,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 30.5, 0.03);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 35.0, 0.0);
     checkCUDAError("generate camera ray");
 
     int depth = 0;
@@ -963,15 +966,15 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     
     // BLOOM POST PROCESS
 
-    cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
-    bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
-    bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
-    bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
-    bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
+    //cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
+    //bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
+    //bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
+    //bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
+    //bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
+    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
 
     // Send results to OpenGL buffer for rendering
-    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
 
     // Retrieve image from GPU
     cudaMemcpy(hst_scene->state.image.data(), dev_bloomImage, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);

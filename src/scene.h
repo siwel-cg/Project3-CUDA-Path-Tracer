@@ -15,6 +15,7 @@ public:
     void loadEnvironmentMap(const std::string& hdrName);
     void loadBVH();
     bvhNode buildTree(int idxStart, int idxEndl, int leafSize);
+    void loadOBJ(const std::string& objName);
 
     std::vector<Geom> geoms;
     std::vector<glm::vec3> centroids;

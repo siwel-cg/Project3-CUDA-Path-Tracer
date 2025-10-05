@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include "json.hpp"
+#include "tiny_obj_loader.h"
 
 #include <fstream>
 #include <iostream>
@@ -240,6 +241,74 @@ void Scene::loadBVH() {
     this->root = root;
 }
 
+void Scene::loadOBJ(const std::string& objName) {
+    tinyobj::ObjReader reader;
+    tinyobj::ObjReaderConfig reader_config;
+    reader_config.triangulate = true;
+
+    if (!reader.ParseFromFile(objName, reader_config)) {
+        if (!reader.Error().empty()) {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+        exit(1);
+    }
+
+    if (!reader.Warning().empty()) {
+        std::cout << "TinyObjReader: " << reader.Warning();
+    }
+
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+
+    for (size_t s = 0; s < shapes.size(); s++) {
+        // Loop over faces(polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+            Geom newTri;
+
+            tinyobj::index_t idx = shapes[s].mesh.indices[index_offset];
+            newTri.triPos1 = glm::vec3(
+                attrib.vertices[3 * idx.vertex_index + 0],
+                attrib.vertices[3 * idx.vertex_index + 1],
+                attrib.vertices[3 * idx.vertex_index + 2]
+            );
+
+            idx = shapes[s].mesh.indices[index_offset + 1];
+            newTri.triPos2 = glm::vec3(
+                attrib.vertices[3 * idx.vertex_index + 0],
+                attrib.vertices[3 * idx.vertex_index + 1],
+                attrib.vertices[3 * idx.vertex_index + 2]
+            );
+
+            idx = shapes[s].mesh.indices[index_offset + 2];
+            newTri.triPos3 = glm::vec3(
+                attrib.vertices[3 * idx.vertex_index + 0],
+                attrib.vertices[3 * idx.vertex_index + 1],
+                attrib.vertices[3 * idx.vertex_index + 2]
+            );
+
+            glm::vec3 centroid = newTri.triPos1 + newTri.triPos2 + newTri.triPos3;
+            centroid /= 3.0f;
+
+            index_offset += fv;
+
+            newTri.type = TRIANGLE;
+            newTri.materialid = 1;
+            newTri.translation = centroid;
+            newTri.rotation = glm::vec3(0.0);
+            newTri.scale = glm::vec3(0.0);
+            newTri.transform = utilityCore::buildTransformationMatrix(
+                newTri.translation, newTri.rotation, newTri.scale);
+            newTri.inverseTransform = glm::inverse(newTri.transform);
+            newTri.invTranspose = glm::inverseTranspose(newTri.transform);
+
+            this->geoms.push_back(newTri);
+            this->bvhGeoIdx.push_back(this->bvhGeoIdx.size()-1);
+        }
+    }
+}
+
 void Scene::loadFromJSON(const std::string& jsonName)
 {
     std::ifstream f(jsonName);
@@ -308,7 +377,8 @@ void Scene::loadFromJSON(const std::string& jsonName)
         {
             newGeom.type = SPHERE;
         }
-        else {
+        else
+        {
             newGeom.type = DISK;
         }
         newGeom.materialid = MatNameToID[p["MATERIAL"]];
@@ -327,12 +397,6 @@ void Scene::loadFromJSON(const std::string& jsonName)
         bvhGeoIdx.push_back(idx);
         idx++;
     }
-
-    this->centroids = std::vector<glm::vec3>(geoms.size(), glm::vec3());
-    for (int i = 0; i < geoms.size(); i++) {
-        centroids[i] = geoms[i].translation;
-    }
-    loadBVH();
 
     const auto& cameraData = data["Camera"];
     Camera& camera = state.camera;
@@ -367,3 +431,4 @@ void Scene::loadFromJSON(const std::string& jsonName)
     state.image.resize(arraylen);
     std::fill(state.image.begin(), state.image.end(), glm::vec3());
 }
+

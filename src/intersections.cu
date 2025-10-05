@@ -150,3 +150,35 @@ __host__ __device__ float diskIntersectionTest(
 
     return t;
 }
+
+__host__ __device__ float triangleIntersectionTest(
+    Geom triangle,
+    Ray r,
+    glm::vec3& intersectionPoint,
+    glm::vec3& normal,
+    bool& outside)
+{
+    glm::vec3 hitPos;
+    float t;
+
+    if (glm::intersectRayTriangle(r.origin, r.direction,
+        triangle.triPos1, triangle.triPos2, triangle.triPos3,
+        hitPos))
+    {   
+
+        t = glm::length(hitPos - r.origin);
+        if (t > 0.0f) {
+            intersectionPoint = hitPos;
+
+            normal = glm::normalize(glm::cross(
+                triangle.triPos2 - triangle.triPos1,
+                triangle.triPos3 - triangle.triPos1
+            ));
+
+            outside = glm::dot(r.direction, normal) < 0.0f;
+            return t;
+        }
+    }
+
+    return -1.0f;
+}
