@@ -39,9 +39,9 @@ CUDA Path Tracer
 - Bloom post processing
 
 ### References
-- [text](https://henrikdahlberg.github.io/2016/08/23/stream-compaction.html)
-- [text](https://nvidia.github.io/cccl/thrust/api/group__stream__compaction_1gaf01d45b30fecba794afae065d625f94f.html)
-- [text](https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/)
+- https://henrikdahlberg.github.io/2016/08/23/stream-compaction.html
+- https://nvidia.github.io/cccl/thrust/api/group__stream__compaction_1gaf01d45b30fecba794afae065d625f94f.html
+- https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/
 - http://spiro.fisica.unipd.it/~antonell/schwarzschild/
 - https://rantonels.github.io/starless/
 - https://web.mit.edu/10.001/Web/Course_Notes/Differential_Equations_Notes/node5.html
