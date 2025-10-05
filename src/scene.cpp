@@ -300,7 +300,7 @@ void Scene::loadOBJ(const std::string& objName) {
             index_offset += fv;
 
             newTri.type = TRIANGLE;
-            newTri.materialid = 1;
+            newTri.materialid = 2;
             newTri.translation = centroid;
             newTri.rotation = glm::vec3(0.0);
             newTri.scale = glm::vec3(rad);

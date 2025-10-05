@@ -119,7 +119,7 @@ __host__ __device__
 float windowWeight(float r, float oRad, float iRad) {
     float normalizedDist = (r - iRad) / (oRad - iRad);
     normalizedDist = glm::clamp(normalizedDist, 0.0f, 1.0f);
-    float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
+    float shapedFalloff = glm::pow(1.0f - normalizedDist, 1.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
     return glm::abs(1.0f - normalizedDist);
 }
 
@@ -205,8 +205,6 @@ __host__ __device__ glm::vec2 swirl(glm::vec2 p, float swirlFactor) {
     return glm::vec2(r * glm::cos(theta), r * glm::sin(theta));
 }
 
-
-
 __host__ __device__ void blackHoleRay(
     PathSegment& pathSegment,
     glm::vec3 intersect,
@@ -239,8 +237,8 @@ __host__ __device__ void blackHoleRay(
 
             glm::vec2 swirlPos = swirl(glm::vec2(crossingPoint.x, crossingPoint.z), 0.4);
 
-            float shapedFalloff = glm::pow(1.0f - normalizedDist, 2.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
-            shapedFalloff = shapedFalloff * 0.75f + shapedFalloff * noise(swirlPos);
+            float shapedFalloff = glm::pow(1.0f - normalizedDist, 1.0f) * glm::smoothstep(0.0f, 0.1f, normalizedDist);
+            shapedFalloff = shapedFalloff * 0.6f + shapedFalloff * noise(swirlPos);
 
             thrust::uniform_real_distribution<float> u01(0, 1);
             if (u01(rng) < shapedFalloff) {
