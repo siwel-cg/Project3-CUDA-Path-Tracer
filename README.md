@@ -9,19 +9,19 @@ CUDA Path Tracer
 
 ### Renders (MORE TO COME)
 <p align="center">
-  <img src="/BUILD/blackhole_bvh_test.2025-10-05_02-39-31z.775samp.png" alt="Purple accretion disk with lensing" width="49%"/>
-  <img src="/BUILD/blackhole_bvh_test.2025-10-05_02-25-49z.537samp.png" alt="Blue accretion disk variant" width="49%"/>
+  <img src="../BUILD/blackhole_bvh_test.2025-10-05_02-39-31z.775samp.png" alt="Purple accretion disk with lensing" width="49%"/>
+  <img src="../BUILD/blackhole_bvh_test.2025-10-05_02-25-49z.537samp.png" alt="Blue accretion disk variant" width="49%"/>
 </p>
 <p align="center">
-  <img src="/BUILD/blackhole_mirrors.2025-10-05_13-27-25z.678samp.png" alt="Orange disk with mirrored highlights" width="49%"/>
-  <img src="/BUILD/singleBH_V1.2025-10-05_17-56-29z.437samp.png" alt="Hot swirling disk, planets in a row" width="49%"/>
+  <img src="../BUILD/blackhole_mirrors.2025-10-05_13-27-25z.678samp.png" alt="Orange disk with mirrored highlights" width="49%"/>
+  <img src="../BUILD/singleBH_V1.2025-10-05_17-56-29z.437samp.png" alt="Hot swirling disk, planets in a row" width="49%"/>
 </p>
 <p align="center">
-  <img src="/BUILD/singleBH_V1.2025-10-05_17-53-17z.661samp.png" alt="Pastel disk, planets in a row" width="49%"/>
-  <img src="/BUILD/singleBH_V1.2025-10-05_16-53-14z.97samp.png" alt="Magenta close-up with hand silhouette" width="49%"/>
+  <img src="../BUILD/singleBH_V1.2025-10-05_17-53-17z.661samp.png" alt="Pastel disk, planets in a row" width="49%"/>
+  <img src="../BUILD/singleBH_V1.2025-10-05_16-53-14z.97samp.png" alt="Magenta close-up with hand silhouette" width="49%"/>
 </p>
 <p align="center">
-  <img src="/BUILD/singleBH_V1.2025-10-04_03-03-55z.950samp.png" alt="Clean pink ring and lensing" width="60%"/>
+  <img src= "../BUILD/singleBH_V1.2025-10-04_03-03-55z.950samp.png" alt="Clean pink ring and lensing" width="60%"/>
 </p>
 
 
