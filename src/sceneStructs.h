@@ -34,15 +34,16 @@ struct Geom
     glm::mat4 invTranspose;
 };
 
-struct bvhNode
-{
+struct bvhNode {
     glm::vec3 aabbMin;
+    float _pad1;
     glm::vec3 aabbMax;
+    float _pad2;
     int startIdx;
     int endIdx;
     int leftChild;
     int rightChild;
-    bool isLeaf;
+    int isLeaf;
 };
 
 struct Material

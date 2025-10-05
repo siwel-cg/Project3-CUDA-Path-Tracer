@@ -134,19 +134,8 @@ void pathtraceInit(Scene* scene)
     cudaMalloc(&dev_bvhTree, scene->bvhTree.size() * sizeof(bvhNode));
     cudaMemcpy(dev_bvhTree, scene->bvhTree.data(), scene->bvhTree.size() * sizeof(bvhNode), cudaMemcpyHostToDevice);
 
-    bvhNode* verify = new bvhNode[scene->bvhTree.size()];
-    cudaMemcpy(verify, dev_bvhTree, scene->bvhTree.size() * sizeof(bvhNode), cudaMemcpyDeviceToHost);
-
-    printf("Verification - Root node after GPU round-trip:\n");
-    printf("  aabbMin: (%.2f, %.2f, %.2f)\n", verify[0].aabbMin.x, verify[0].aabbMin.y, verify[0].aabbMin.z);
-    printf("  aabbMax: (%.2f, %.2f, %.2f)\n", verify[0].aabbMax.x, verify[0].aabbMax.y, verify[0].aabbMax.z);
-    printf("  isLeaf: %d\n", verify[0].isLeaf);
-    printf("  startIdx: %d, endIdx: %d\n", verify[0].startIdx, verify[0].endIdx);
-
-    delete[] verify;
-
-    cudaMalloc(&dev_bvhGeoIdx, scene->geoms.size() * sizeof(int));
-    cudaMemcpy(dev_bvhGeoIdx, scene->bvhGeoIdx.data(), scene->geoms.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMalloc(&dev_bvhGeoIdx, scene->bvhGeoIdx.size() * sizeof(int));
+    cudaMemcpy(dev_bvhGeoIdx, scene->bvhGeoIdx.data(), scene->bvhGeoIdx.size() * sizeof(int), cudaMemcpyHostToDevice);
 
     cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
     cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
@@ -354,49 +343,65 @@ __device__ bool IntersectAABB(const Ray& ray, float t, const glm::vec3 bmin, con
     return tmax >= tmin && tmin < t && tmax > 0;
 }
 
-__device__ float computeBVHintersectDist(Ray ray, float& t, Geom* geoms, bvhNode* bvhTree, int* bvhGeoIdx, const int nodeIndex,
+__device__ float computeBVHintersectDist(int numGeos, int numNodes, Ray ray, float& t, Geom* geoms, bvhNode* bvhTree, int* bvhGeoIdx, const int nodeIndex,
     glm::vec3& intersect_point, glm::vec3& normal, int& hit_geom_index) {
-    bvhNode curNode = bvhTree[nodeIndex];
-    if (!IntersectAABB(ray, t, curNode.aabbMin, curNode.aabbMax)) {
-        return t;
-    }
-    if (curNode.isLeaf)
-    {
-        glm::vec3 tmp_intersect;
-        glm::vec3 tmp_normal;
-        bool outside = true;
-        float t_min = FLT_MAX;
-        for (int i = curNode.startIdx; i < curNode.endIdx; i++)
-        {
-            Geom& geom = geoms[bvhGeoIdx[i]];
 
-            if (geom.type == CUBE)
-            {
-                t_min = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
-            }
-            else if (geom.type == SPHERE)
-            {
-                t_min = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
-            }
-            else if (geom.type == DISK) {
-                t_min = diskIntersectionTest(geom, ray, tmp_intersect, tmp_normal);
-            }
 
-            if (t_min > 0.0f && t_min < t)
-            {
-                t = t_min;
-                hit_geom_index = i;
-                intersect_point = tmp_intersect;
-                normal = tmp_normal;
+    int stack[32];
+    int stackPtr = 0;
+    stack[stackPtr++] = numNodes - 1;
+
+    while (stackPtr > 0) {
+        int nodeIndex = stack[--stackPtr];
+        bvhNode curNode = bvhTree[nodeIndex];
+
+        if (!IntersectAABB(ray, t, curNode.aabbMin, curNode.aabbMax)) {
+            continue;
+        }
+
+        if (curNode.isLeaf == 1) {
+            glm::vec3 tmp_intersect;
+            glm::vec3 tmp_normal;
+            bool outside = true;
+            float t_test;
+
+            for (int i = curNode.startIdx; i < curNode.endIdx; i++) {
+                if (i < 0 || i >= numGeos) continue;
+                int geoIdx = bvhGeoIdx[i];
+                if (geoIdx < 0 || geoIdx >= numGeos) continue;
+
+                Geom& geom = geoms[geoIdx];
+
+                if (geom.type == SPHERE) {
+                    t_test = sphereIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+                }
+                else if (geom.type == CUBE) {
+                    t_test = boxIntersectionTest(geom, ray, tmp_intersect, tmp_normal, outside);
+                }
+                else if (geom.type == DISK) {
+                    t_test = diskIntersectionTest(geom, ray, tmp_intersect, tmp_normal);
+                }
+
+                if (t_test > 0.0f && t_test < t) {
+                    t = t_test;
+                    hit_geom_index = geoIdx; 
+                    intersect_point = tmp_intersect;
+                    normal = tmp_normal;
+                }
+            }
+        }
+        else {
+            if (curNode.rightChild >= 0) {
+                stack[stackPtr++] = curNode.rightChild;
+            }
+            if (curNode.leftChild >= 0) {
+                stack[stackPtr++] = curNode.leftChild;
             }
         }
     }
-    else
-    {
-        float tLeft = computeBVHintersectDist(ray, t, geoms, bvhTree, bvhGeoIdx, curNode.leftChild, intersect_point, normal, hit_geom_index);
-        float tRight = computeBVHintersectDist(ray, t, geoms, bvhTree, bvhGeoIdx, curNode.rightChild, intersect_point, normal, hit_geom_index);
-    }
+
     return t;
+
 }
 
 __global__ void computeIntersections(
@@ -407,14 +412,17 @@ __global__ void computeIntersections(
     bvhNode* bvhTree,
     int* bvhGeoIdx,
     int geoms_size,
+    int bvhTree_size,
     ShadeableIntersection* intersections)
-{
+{   
+
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (path_index < num_paths)
     {
         PathSegment pathSegment = pathSegments[path_index];
 
+        // FOR GOING BACK TO NAIVE INTERSECTIONS SWITCH t AND t_min
         float t = FLT_MAX;
         glm::vec3 intersect_point;
         glm::vec3 normal;
@@ -460,7 +468,7 @@ __global__ void computeIntersections(
         //    }
         //}
 
-        t_min = computeBVHintersectDist(pathSegment.ray, t, geoms, bvhTree, bvhGeoIdx, 0, intersect_point, normal, hit_geom_index);
+        t_min = computeBVHintersectDist(geoms_size, bvhTree_size, pathSegment.ray, t, geoms, bvhTree, bvhGeoIdx, 0, intersect_point, normal, hit_geom_index);
 
         if (hit_geom_index == -1)
         {
@@ -604,7 +612,7 @@ __global__ void shadeRay(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == -2) {
+            if (intersection.materialId == 0) {
                 Geom geo = geoms[intersection.geoId];
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, geo.invTranspose, material, rng);
@@ -837,7 +845,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 10.0, 0.0);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 30.5, 0.03);
     checkCUDAError("generate camera ray");
 
     int depth = 0;
@@ -848,6 +856,11 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     // ENVI MAP VARIABLES:
     int hdrHeight = hst_scene->enviMap->height;
     int hdrWidth = hst_scene->enviMap->width;
+
+    if (dev_bvhTree == NULL) {
+        printf("ERROR: dev_bvhTree is NULL!\n");
+    }
+
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
@@ -867,6 +880,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             dev_bvhTree,
             dev_bvhGeoIdx,
             hst_scene->geoms.size(),
+            hst_scene->bvhTree.size(),
             dev_intersections
         );
         checkCUDAError("trace one bounce");
@@ -949,15 +963,15 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     
     // BLOOM POST PROCESS
 
-    //cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
-    //bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
-    //bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
-    //bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
-    //bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
-    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
+    cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
+    bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
+    bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
+    bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
+    bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
 
     // Send results to OpenGL buffer for rendering
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
 
     // Retrieve image from GPU
     cudaMemcpy(hst_scene->state.image.data(), dev_bloomImage, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);

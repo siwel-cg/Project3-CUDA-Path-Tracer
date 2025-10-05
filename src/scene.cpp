@@ -149,7 +149,7 @@ bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
     curNode.aabbMax = glm::vec3(-FLT_MAX);
     curNode.startIdx = idxStart;
     curNode.endIdx = idxEnd;
-    curNode.isLeaf = false;
+    curNode.isLeaf = 0;
     curNode.leftChild = -1;
     curNode.rightChild = -1;
 
@@ -171,13 +171,13 @@ bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
     }
 
     if (curNode.endIdx - curNode.startIdx <= leafSize) { // STOP SUBDIV
-        curNode.isLeaf = true;
+        curNode.isLeaf = 1;
         curNode.leftChild = -1;
         curNode.rightChild = -1;
         return curNode;
     }
     else {
-        curNode.isLeaf = false;
+        curNode.isLeaf = 0;
 
         // CALCULATE MID POINT
         glm::vec3 ext = curNode.aabbMax - curNode.aabbMin;
@@ -192,7 +192,7 @@ bvhNode Scene::buildTree(int idxStart, int idxEnd, int leafSize) {
 
         auto midIt = std::partition(first, last, [&](int primId) {
             float c = this->centroids[primId][maxis];
-            return c < midPos;
+            return c <= midPos;
             });
         int mid = int(midIt - bvhGeoIdx.begin());
 
@@ -235,15 +235,9 @@ void Scene::loadBVH() {
         return;
     }
 
+    root = buildTree(0, bvhGeoIdx.size(), 8);
     bvhTree.push_back(root);
-    root = buildTree(0, bvhGeoIdx.size() - 1, 17);
     this->root = root;
-
-    printf("Root AABB: min=(%.2f, %.2f, %.2f), max=(%.2f, %.2f, %.2f)\n",
-        root.aabbMin.x, root.aabbMin.y, root.aabbMin.z,
-        root.aabbMax.x, root.aabbMax.y, root.aabbMax.z);
-    printf("Root isLeaf: %d, startIdx: %d, endIdx: %d\n",
-        root.isLeaf, root.startIdx, root.endIdx);
 }
 
 void Scene::loadFromJSON(const std::string& jsonName)
