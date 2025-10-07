@@ -5,10 +5,10 @@
         {
             "TYPE":"BlackHole",
             "RGB": [0.8, 0.2, 0.05],
-            "EMITTANCE":5.0,
+            "EMITTANCE":15.0,
             "ROUGHNESS":1.0,
             "INNERRAD": 1.0, 
-            "OUTERRAD": 10.0
+            "OUTERRAD": 16.0
         },
         "mirror_chrome": {
             "TYPE": "Specular",
@@ -29,7 +29,7 @@
         "ITERATIONS":5000,
         "DEPTH":8,
         "FILE":"singleBH_V1",
-        "EYE":[0.0,0.0,15.0],
+        "EYE":[0.0,0.0,18.0],
         "LOOKAT":[0.0,0.0,0.0],
         "UP":[0.0,1.0,0.0]
     },
@@ -40,49 +40,7 @@
             "MATERIAL":"blackhole",
             "TRANS":[0.0,0.0,0.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[10.0,10.0,10.0]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"light_blue",
-            "TRANS":[0.0,0.0,-6.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[1.0,1.0,1.0]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"light_blue",
-            "TRANS":[0.0,0.0,-8.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[0.6,0.6,0.6]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"light_blue",
-            "TRANS":[0.0,0.0,-10.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[0.2,0.2,0.2]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"light_blue",
-            "TRANS":[0.0,0.0,6.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[1.0,1.0,1.0]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"light_blue",
-            "TRANS":[0.0,0.0,8.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[0.6,0.6,0.6]
-        },
-        {
-            "TYPE":"sphere",
-            "MATERIAL":"light_blue",
-            "TRANS":[0.0,0.0,10.0],
-            "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[0.2,0.2,0.2]
+            "SCALE":[16.0,16.0,16.0]
         }
     ]
 }

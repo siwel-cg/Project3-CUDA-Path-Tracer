@@ -964,18 +964,18 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     
     // BLOOM POST PROCESS
 
-    cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
+    /*cudaMemset(dev_bloomMask, 0, pixelcount * sizeof(glm::vec3));
     bloomHighPass << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_paths, dev_image, dev_bloomMask,  cam.resolution, iter, 1.0f);
     bloomBlurY << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_bloomMaskBlur, cam.resolution.x, cam.resolution.y);
     bloomBlurX << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMaskBlur, dev_bloomMask, cam.resolution.x, cam.resolution.y);
     bloomBlend << <blocksPerGrid2d, blockSize2d >> > (pixelcount, dev_bloomMask, dev_image, dev_bloomImage, cam.resolution.x, cam.resolution.y);
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_bloomImage);*/
 
     // Send results to OpenGL buffer for rendering
-    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
 
     // Retrieve image from GPU
-    cudaMemcpy(hst_scene->state.image.data(), dev_bloomImage, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hst_scene->state.image.data(), dev_image, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
 }
