@@ -39,7 +39,9 @@ This path tracer uses a **wavefront architecture** optimized for GPU parallelism
 
 This approach maintains high GPU occupancy by keeping threads synchronized at each bounce level, avoiding the warp divergence that would occur if different threads were at different depths in their paths.
 For a deeper dive into path tracing, see [PBRT](https://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Path_Tracing) or [Ray Tracing in One Weekend](https://raytracing.github.io/).
+
 ---
+
 In this project, various visual and performace improving features were implemented including:
 ### Core Rendering
 - **Physically-Based Materials**: Diffuse and mirror BSDFs with stochastic roughness-based blending
@@ -91,7 +93,9 @@ With this acceleration equation in hand, I implemented an RK4 integrator for num
 As you can see from the renders above, there is a bit more to a black hole than just light bending. Real black holes (at least the ones we can see) have this disk of glowing gass and debris spiraling around and into it. This glowing disk is what makes the gravitational lensing visible: light from the back of the disk bends over and around the black hole, creating the iconic "halo" effect. Simulating actual clouds of volumes would be another level of complexity I neither had the time nor the need to do. Instead, we can get a somewhat convincing result by faking this disk with a noise. If our stepped ray passes through the accretion disk plane, we can use that position to sample a noise and shade the ray accordingly.
 
 <p align="center">
-  <img src="path/to/BlackHoleSolo_V1.png" alt="Black hole with accretion disk" width="600" />
+  <a href="IMAGES/BlackHoleSolo_V1.png">
+    <img src="IMAGES/BlackHoleSolo_V1.png" alt="Black hole gravitational lensing" width="600" />
+  </a>
 </p>
 
 ### Implementation
