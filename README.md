@@ -99,8 +99,39 @@ As you can see from the renders above, there is a bit more to a black hole than 
 </p>
 
 ### Implementation
+So how does this all fit into our path tracer setup? As mentioned, I reuse the sphere intersection setup I had and treat the black hole as a material with a few key parameters: an RGB color channel, emittance, inner radius (event horizon), and outer radius (influence boundary). When a ray hits an object with this material, instead of performing standard BSDF evaluation, we hand it off to a specialized `blackHoleRay()` function that handles the curved spacetime integration.
 
- After each step our ray inside the gravitation field takes, I check if it passes our accretion disk's plane. If so, I find where between the current position and the last position it crosses this plane. Using that 2D coordinate, I sample a simple perlin noise function and then swirl the result based on the radius from the center very similarly to the technique I used in this past black hole project: [black hole shader work](https://siwel-cg.github.io/siwel.cg_websiteV1/projects/BlackHole.html). This gives the spiralling look without having to incorperate any actual motion into the black hole math. 
+Starting from the intersection point, we initialize the ray's position relative to the black hole center and march it forward using RK4 integration. At each step, we update both position and velocity based on the gravitational acceleration formula from the Schwarzschild metric:
+
+$$\mathbf{a} = \frac{-3Mh^2}{|\mathbf{r}|^5} \mathbf{r} \cdot w$$
+
+Where $M$ is the black hole mass, $h^2$ is the squared angular momentum (impact parameter), and $w$ is a windowing function that smoothly attenuates the force near the boundaries. The time step adapts based on the local curvature-smaller steps near the event horizon, larger steps farther out.
+
+**Termination Conditions:**
+
+During integration, we check for three outcomes:
+
+1. **Event Horizon Capture**: Rays that get too close to the center zero out throughput and terminate.
+2. **Accretion Disk Intersection**: Rays that cross the equatorial plane within disk bounds sample the noise function for emission (see below).
+3. **Escape**: Rays that exit the outer radius moving outward return to normal path tracing.
+
+**Accretion Disk Sampling:**
+
+ After each step our ray inside the gravitation field takes, I check if it passes our accretion disk's plane. If so, I find where between the current position and the last position it crosses this plane. Using that 2D coordinate, I sample a simple perlin noise function and then swirl the result based on the radius from the center very similarly to the technique I used in this past black hole project: [black hole shader work](https://siwel-cg.github.io/siwel.cg_websiteV1/projects/BlackHole.html). This gives the spiralling look without having to incorperate any actual motion into the black hole math. This noise is combined with a fall off of the radius to get a final value which I use to stochastically determine if a ray should stop and apply the emmited color to the path or continue going, passing through the accretion disk. This stochastic approach means some rays pass through the disk while others are absorbed, naturally creating the wispy, turbulent appearance of the accretion material. Although slightly ineficient, since to get a smooth, converged opacity you need to trace many rays, with this wavefront setup, this was the only way I could think of to do any sort of partial alpha effect. 
+
+ The best part about doingan accretion disk procedurally is that it is really easy to control the final visual output of the black hole. By varying some paramters in the noise functions, I can get different swirl intensities and densities of the disk.
+
+The beauty of this approach is modularity. From the path tracer's perspective, hitting a black hole is just another material evaluation, it updates the ray state and returns. Rays that escape continue bouncing through the scene normally, allowing the black hole to seamlessly composite with standard geometry and materials.
+
+**A Quick Note On Efficency**
+
+I will have more details and FPS analysis later on, but it should be intuitive that marching along a path is significantly slower than a simple mirror or diffuse bouce computation. This means that the treads for paths going through the black hole take longer than the threads who don't. At each wavefront iteration we need to sync up all the threads which means those quicker threads will have to wait. One optimization that helps with this is sorting by material type and making them contiguous in meory (this is part of the reason why I implemented this black holes as a material). I didn't really implement any other GPU specific optimizations for this, but one could be doing stream compaction for substep of our walk, similar to what we do for the actuall path segments. Even though, particularly for open scenes, the light distortion basically was real time, in close scenes where many paths bounce in and out of the black hole multiple times, it can have a significant performance impact. Most of my scenes and testing involved just 1 or 2 black holes, but if you have a scene with many, the same problem could occure. Using RK4 and updating time steps certainly does help with efficency, but future work could be done to take advantage of the parallel architecture even more for better results. 
+
+
+
+
+
+
 
 
 # References
