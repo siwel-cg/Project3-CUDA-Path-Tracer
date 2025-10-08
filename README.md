@@ -184,7 +184,7 @@ A BVH solves the intersection scaling problem by organizing geometry into a tree
 
 Before we build this BVH tree, we first need to load in our OBJ triangle meshes into our geometry array. For simplicity, I used the [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader/tree/release) library which automatically handles reading in an OBJ and converting it into triangle positions and normals with the correct indices. With these triangles I precompute the centroid positions, and finally store the actual geometry into the goemetry array. After which, we build our BVH tree.
 
-This tree is then sent to the GPU via a linearized tree structure rather than pointer-based nodes. Nodes are stored in a flat array with children accessed via index offsets and geometry stored as start and end indices in our Geometry array. This provides better cache coherence on the GPU, where pointer chasing is expensive. During rendering, ray-BVH intersection uses a stack-based traversal. Starting at the root, we test the ray against the node's AABB. If it misses, we pop back up the tree. If it hits and the node is internal, we push both children onto the stack. If it hits a leaf node, we test against all triangles in that leaf. The closest intersection found across all tested triangles is returned. This allows rays to skip vast portions of the scene transforming render times for complext models from minutes per frame to interactive rates.interactible.
+This tree is then sent to the GPU via a linearized tree structure rather than pointer-based nodes. Nodes are stored in a flat array with children accessed via index offsets and geometry stored as start and end indices in our Geometry array. This provides better cache coherence on the GPU, where pointer chasing is expensive. During rendering, ray-BVH intersection uses a stack-based traversal. Starting at the root, we test the ray against the node's AABB. If it misses, we pop back up the tree. If it hits and the node is internal, we push both children onto the stack. If it hits a leaf node, we test against all triangles in that leaf. The closest intersection found across all tested triangles is returned. This allows rays to skip vast portions of the scene transforming render times for complext models from minutes per frame to interactive rates.
 
 <p align="center">
   <img src="IMAGES/bvh_stress_test.2025-10-08_01-15-18z.1560samp.png" alt="Simple BVH scene" width="45%" />
@@ -194,11 +194,29 @@ This tree is then sent to the GPU via a linearized tree structure rather than po
 ### Stream Compaction
 As I have mentioned a few times now, one area for optimization is in culling "dead" rays so that we don't use threads to calculate nothing. For this, we can use stream compaction. Stream compaction is a parallel way of doing a linear search through an array and removing unwanted elements while shifting all the other elements downwards so they are continuous in the array. We can take advantage of this algorithm to efficiently remove these useless path segments each bounce. For this, I use `thrust::partition` to separate paths into two groups: those still alive (`remainingBounces > 0`) and those that have finished. The partition operation is stable and efficient, rearranging the path array in-place so all active paths are packed at the front. We then update the path count to reflect only the active paths, and subsequent bounces operate on this smaller buffer. For a closed scene with only a few lights, this will have a minimum effect. However, the real advantage comes when you have a very open scene. Since many of the rays will go of into empty space and terminate just after the first bounce, at each iteration, many of our rays will beocme usless. By dynamically culling them, we can drastically reduce the amount of wasted kernel calls resulting in much faster renders. 
 
-### Material 
+### Material Sorting
+The last bit of optimization we can do, is sorting the path segments based on the materials they hit. What we want is for each warp to execute the same instructions coherently. When paths hit different material types and evaluate different BSDFs, they diverge and some threads execute, for example, diffuse shading code while others execute specular reflections, This warp divergence forces the GPU to serialize execution, dramatically reducing throughput. Particularly, as I mentioned, for my black hole ray stepping material. Material sorting addresses this by reordering paths before shading so that rays hitting the same material type are grouped together. I use `thrust::sort_by_key` with the material ID as the key and the path segment as the value. After sorting, all paths evaluating diffuse materials execute consecutively, followed by all specular paths, then black hole paths, and so on. Threads within each warp now execute the same BSDF code path, eliminating divergence and improving memory access coherence since similar materials often have similar memory layouts.
 
 # Performance Analysis
+### Stream Compaction
+As mentioned, stream compaction can significantly impact render performance particularly on very open scenes. As such, I compared the average frame rate over on both open and closed scenes with minimal objects in them and with a bounce limit of 24. The data shows this improvement with the stream compaction having a marginal increase in FPS for the close scene, and a much larger increase for the open scene. 
+
+<p align="center">
+  <img src="IMAGES/StreamCompactGraph_V1.png" alt="Stream Compaction 1" width="600" />
+</p>
+
+### BVH 
+BVH is what made object loading possible. Even though for small scenes, the overhead of constructing the tree is not worth it, as I found for my implementation, for anything over about 200 objects, is not even viable. For the larger models, the render would instantly crash on the first iteration of bounces. Again, across various scenes with differing numbers of objects, I took the average FPS over a 30 second window. The scenes were partially open, so stream compaction had some effect, however the majority of the "heavy lifting" was done by the BVH.
+
+<p align="center">
+  <img src="IMAGES/BVH Graph.png" alt="Stream Compaction 1" width="600" />
+</p>
+
+### Material Sorting
+Although in some cases, sorting the segments based on terial would help reduce warp divergence and speed up render times, I found that my scenes never had enough materials to make this worth while. In fact, across all my scenes, there was a consistent drop in performance when I did sort the paths. My focus for this path tracer wasn't a vast amount of nice PBR materials with many different effects so although I implemented it as a future optimization for when I do increase the number of material types, for now, I found its more harmful than helpful. 
 
 # Bloopers
+These are just some wild renderes I got while trying to implement some of these features.
 <p align="center">
   <img src="IMAGES/cornell.2025-10-03_20-11-58z.634samp.png" alt="Blooper 1" width="600" />
 </p>

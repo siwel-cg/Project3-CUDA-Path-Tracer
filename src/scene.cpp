@@ -236,7 +236,7 @@ void Scene::loadBVH() {
         return;
     }
 
-    root = buildTree(0, bvhGeoIdx.size(), 16);
+    root = buildTree(0, bvhGeoIdx.size(), 8);
     bvhTree.push_back(root);
     this->root = root;
 }

@@ -613,7 +613,7 @@ __global__ void shadeRay(int iter,
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
 
-            if (intersection.materialId == -9.0) {
+            if (intersection.materialId == -3) {
                 Geom geo = geoms[intersection.geoId];
                 glm::vec3 magic = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 blackHoleRay(pathSegments[idx], magic, intersection.surfaceNormal, geo.invTranspose, material, rng);
@@ -846,7 +846,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     // TODO: perform one iteration of path tracing
 
-    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 2.0, 0.0);
+    generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, iter, traceDepth, dev_paths, 30.0, 0.0);
     checkCUDAError("generate camera ray");
 
     int depth = 0;
@@ -907,22 +907,22 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         
 
         // SORT RAYS BY MATERIAL ID
-        fillMaterialId << <numblocksPathSegmentTracing, blockSize1d >> > (
-            num_paths, dev_matIds, dev_intersections
-        );
+        //fillMaterialId << <numblocksPathSegmentTracing, blockSize1d >> > (
+        //    num_paths, dev_matIds, dev_intersections
+        //);
 
-        dev_thrust_matId = thrust::device_pointer_cast(dev_matIds);
-        dev_thrust_pathIdx = thrust::device_pointer_cast(dev_paths);
-        dev_thrust_intersections = thrust::device_pointer_cast(dev_intersections);
+        //dev_thrust_matId = thrust::device_pointer_cast(dev_matIds);
+        //dev_thrust_pathIdx = thrust::device_pointer_cast(dev_paths);
+        //dev_thrust_intersections = thrust::device_pointer_cast(dev_intersections);
 
-        thrust::sort_by_key(
-            dev_thrust_matId,
-            dev_thrust_matId + num_paths,
-            thrust::make_zip_iterator(thrust::make_tuple(
-                dev_thrust_pathIdx,
-                dev_thrust_intersections
-            ))
-        );
+        //thrust::sort_by_key(
+        //    dev_thrust_matId,
+        //    dev_thrust_matId + num_paths,
+        //    thrust::make_zip_iterator(thrust::make_tuple(
+        //        dev_thrust_pathIdx,
+        //        dev_thrust_intersections
+        //    ))
+        //);
         
         shadeRay << < numblocksPathSegmentTracing, blockSize1d >> > (
             iter,

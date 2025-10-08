@@ -38,9 +38,9 @@
         "RES":[800,800],
         "FOVY":45.0,
         "ITERATIONS":5000,
-        "DEPTH":24,
+        "DEPTH":8,
         "FILE":"cornell",
-        "EYE":[0.0,5.0,10.5],
+        "EYE":[0.0,5.0,7.5],
         "LOOKAT":[0.0,5.0,0.0],
         "UP":[0.0,1.0,0.0]
     },
@@ -87,6 +87,62 @@
             "TRANS":[5.0,5.0,0.0],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[0.01,10.0,10.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_red",
+            "TRANS":[-4.0, 3.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_green",
+            "TRANS":[-2.0, 3.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_blue",
+            "TRANS":[2.0, 3.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_yellow",
+            "TRANS":[4.0, 3.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_red",
+            "TRANS":[-4.0, 6.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_green",
+            "TRANS":[-2.0, 6.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_blue",
+            "TRANS":[2.0, 6.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"mat_yellow",
+            "TRANS":[4.0, 6.0, 0.0],
+            "ROTAT":[0.0, 0.0, 0.0],
+            "SCALE":[1.0, 1.0, 1.0]
         }
     ]
 }

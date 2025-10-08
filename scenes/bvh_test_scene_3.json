@@ -42,35 +42,35 @@
         {
             "TYPE":"sphere",
             "MATERIAL":"mat_red",
-            "TRANS":[-6.0, -6.0, 0.0],
+            "TRANS":[-4.0, 3.0, 0.0],
             "ROTAT":[0.0, 0.0, 0.0],
             "SCALE":[1.0, 1.0, 1.0]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"mat_green",
-            "TRANS":[-2.0, -6.0, 0.0],
+            "TRANS":[-2.0, 3.0, 0.0],
             "ROTAT":[0.0, 0.0, 0.0],
             "SCALE":[1.0, 1.0, 1.0]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"mat_blue",
-            "TRANS":[2.0, -6.0, 0.0],
+            "TRANS":[2.0, 3.0, 0.0],
             "ROTAT":[0.0, 0.0, 0.0],
             "SCALE":[1.0, 1.0, 1.0]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"mat_yellow",
-            "TRANS":[6.0, -6.0, 0.0],
+            "TRANS":[4.0, 3.0, 0.0],
             "ROTAT":[0.0, 0.0, 0.0],
             "SCALE":[1.0, 1.0, 1.0]
         },
         {
             "TYPE":"sphere",
             "MATERIAL":"mat_red",
-            "TRANS":[-6.0, 6.0, 0.0],
+            "TRANS":[-4.0, 6.0, 0.0],
             "ROTAT":[0.0, 0.0, 0.0],
             "SCALE":[1.0, 1.0, 1.0]
         },
@@ -91,7 +91,7 @@
         {
             "TYPE":"sphere",
             "MATERIAL":"mat_yellow",
-            "TRANS":[6.0, 6.0, 0.0],
+            "TRANS":[4.0, 6.0, 0.0],
             "ROTAT":[0.0, 0.0, 0.0],
             "SCALE":[1.0, 1.0, 1.0]
         }

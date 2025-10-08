@@ -256,6 +256,10 @@ void InitImguiData(GuiDataContainer* guiData)
     imguiData = guiData;
 }
 
+static std::vector<float> fpsHistory;
+static float fpsAccumulationTime = 0.0f;
+static float averageFPS = 0.0f;
+static const float FPS_SAMPLE_DURATION = 30.0f; // 30 seconds
 
 // LOOK: Un-Comment to check ImGui Usage
 void RenderImGui()
@@ -286,6 +290,29 @@ void RenderImGui()
     //    counter++;
     //ImGui::SameLine();
     //ImGui::Text("counter = %d", counter);
+
+    float currentFPS = ImGui::GetIO().Framerate;
+    float deltaTime = ImGui::GetIO().DeltaTime;
+
+    fpsHistory.push_back(currentFPS);
+    fpsAccumulationTime += deltaTime;
+
+    // Calculate average every 30 seconds
+    if (fpsAccumulationTime >= FPS_SAMPLE_DURATION) {
+        float sum = 0.0f;
+        for (float fps : fpsHistory) {
+            sum += fps;
+        }
+        averageFPS = sum / fpsHistory.size();
+
+        // Print to console
+        printf("30-second Average FPS: %.2f\n", averageFPS);
+
+        // Reset for next sample period
+        fpsHistory.clear();
+        fpsAccumulationTime = 0.0f;
+    }
+
     ImGui::Text("Traced Depth %d", imguiData->TracedDepth);
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
@@ -359,7 +386,7 @@ int main(int argc, char** argv)
     scene->loadEnvironmentMap(enviFile);
 
     // load obj file
-    scene->loadOBJ(objFile);
+    //scene->loadOBJ(objFile);
 
     // BUILD BVH BASED ON GEOMS
     scene->centroids = std::vector<glm::vec3>(scene->geoms.size(), glm::vec3());

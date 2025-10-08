@@ -64,7 +64,7 @@
         "ITERATIONS":5000,
         "DEPTH":24,
         "FILE":"bvh_stress_test",
-        "EYE":[0.0,5.0,25.0],
+        "EYE":[0.0,5.0,7.5],
         "LOOKAT":[0.0,5.0,0.0],
         "UP":[0.0,1.0,0.0]
     },
@@ -89,13 +89,6 @@
             "MATERIAL":"diffuse_white",
             "TRANS":[0.0,10.0,0.0],
             "ROTAT":[0.0,0.0,90.0],
-            "SCALE":[0.01,10.0,10.0]
-        },
-        {
-            "TYPE":"cube",
-            "MATERIAL":"diffuse_white",
-            "TRANS":[0.0,5.0,-5.0],
-            "ROTAT":[0.0,90.0,0.0],
             "SCALE":[0.01,10.0,10.0]
         },
         {
