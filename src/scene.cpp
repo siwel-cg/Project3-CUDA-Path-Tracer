@@ -236,7 +236,7 @@ void Scene::loadBVH() {
         return;
     }
 
-    root = buildTree(0, bvhGeoIdx.size(), 8);
+    root = buildTree(0, bvhGeoIdx.size(), 16);
     bvhTree.push_back(root);
     this->root = root;
 }
@@ -300,7 +300,7 @@ void Scene::loadOBJ(const std::string& objName) {
             index_offset += fv;
 
             newTri.type = TRIANGLE;
-            newTri.materialid = 2;
+            newTri.materialid = 1;
             newTri.translation = centroid;
             newTri.rotation = glm::vec3(0.0);
             newTri.scale = glm::vec3(rad);

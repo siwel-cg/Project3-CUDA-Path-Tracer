@@ -359,7 +359,7 @@ int main(int argc, char** argv)
     scene->loadEnvironmentMap(enviFile);
 
     // load obj file
-    //scene->loadOBJ(objFile);
+    scene->loadOBJ(objFile);
 
     // BUILD BVH BASED ON GEOMS
     scene->centroids = std::vector<glm::vec3>(scene->geoms.size(), glm::vec3());

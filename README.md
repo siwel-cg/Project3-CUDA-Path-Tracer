@@ -164,20 +164,37 @@ Real cameras have finite apertures, creating a depth of field effect where objec
 The implementation samples random points on the circular lens aperture using concentric disk sampling, then adjusts each ray's direction so it passes through the same point on the focal plane that the original ray (from the lens center) would have hit. Over many frames, rays from different lens positions average together points at the focal distance receive consistent samples and appear sharp, while points at other depths receive divergent samples, creating blur proportional to their distance from the focal plane. The effect is controlled by two parameters: lens radius (aperture size, where larger means stronger blur) and focal distance (which depth appears sharp).
 
 <p align="center">
-  <img src="img/dof_comparison.2025-10-08_00-13-16z.5000samp.png" alt="Focus on foreground" width="45%" />
-  <img src="img/dof_comparison.2025-10-08_00-10-07z.5000samp.png" alt="Focus on middle ground" width="45%" />
+  <img src="IMAGES/dof_comparison.2025-10-08_00-13-16z.5000samp.png" alt="Focus on foreground" width="45%" />
+  <img src="IMAGES/dof_comparison.2025-10-08_00-10-07z.5000samp.png" alt="Focus on middle ground" width="45%" />
 </p>
 
 ### Stochastic Anti-Aliasing
 
 Similarly to how we scattered ray origins across the lens aperture to achieve depth of field, we can apply the same stochastic sampling principle to eliminate aliasing. Instead of casting rays through the exact center of each pixel, we jitter the ray origin randomly within the pixel's area. Without this, rendered images suffer from jagged edges where object boundaries don't align perfectly with pixel centers causing a "staircase" like artifact. Each frame uses a different random offset within the pixel, so over many iterations the samples average across the entire pixel area. Edges that partially cover a pixel receive proportionally mixed colors, naturally producing the correct blended color. This approach requires no special edge detection or additional samples per frame, unlike what you would need for a rasterize. The anti-aliasing emerges automatically from the same Monte Carlo integration that drives the path tracing itself.
 
-<p align="center">
-  <img src="IMAGES/cornell.2025-10-08_00-20-55z.2110samp.png" alt="Anti-aliasing comparison" width="600" />
-</p>
 
 # Performance Improvements
 
+Path tracing is computationally expensive, and even with the parallel power of a GPU, without good thread utilization, performence can still be slow. Several optimizations were crucial to achieving interactive frame rates. The first and most important one was a Bounding Volume Heiarchy (BVH) which allowed for OBJ mesh loading.
+
+### BVH and OBJs
+The goal of BVH is to reducce the number of intersection tests you need to do for a ray. In a niave path tracer implementation, for each ray, you check every single object in your scene to see if the ray hits that object. For anything more complicated than a few simple pieces of geometry, this takes forever. In order to do any type of custom mesh loading, BVH or some other type of acceleration structure was crucial. 
+
+A BVH solves the intersection scaling problem by organizing geometry into a tree of nested bounding boxes. The key insight is that if a ray doesn't hit a bounding box, it can't possibly hit any of the geometry inside that box, allowing us to skip entire branches of the tree and taking our intersection test time from $O(N)$ to $O(log(N))$. First, the hierarchy is built recursively on the CPU. For agiven node, we compute the overall bounding box of that node, the partition each internal piece of geometry based on its centroid and the midpoint of the longest axis of our bounding box. This creates two sets of geometry, one on the "left" of the midpoint and one on the "right". These then go on to become their own nodes and so on until we reach a minimum size limit and we get a leaf node.
+
+Before we build this BVH tree, we first need to load in our OBJ triangle meshes into our geometry array. For simplicity, I used the [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader/tree/release) library which automatically handles reading in an OBJ and converting it into triangle positions and normals with the correct indices. With these triangles I precompute the centroid positions, and finally store the actual geometry into the goemetry array. After which, we build our BVH tree.
+
+This tree is then sent to the GPU via a linearized tree structure rather than pointer-based nodes. Nodes are stored in a flat array with children accessed via index offsets and geometry stored as start and end indices in our Geometry array. This provides better cache coherence on the GPU, where pointer chasing is expensive. During rendering, ray-BVH intersection uses a stack-based traversal. Starting at the root, we test the ray against the node's AABB. If it misses, we pop back up the tree. If it hits and the node is internal, we push both children onto the stack. If it hits a leaf node, we test against all triangles in that leaf. The closest intersection found across all tested triangles is returned. This allows rays to skip vast portions of the scene transforming render times for complext models from minutes per frame to interactive rates.interactible.
+
+<p align="center">
+  <img src="IMAGES/bvh_stress_test.2025-10-08_01-15-18z.1560samp.png" alt="Simple BVH scene" width="45%" />
+  <img src="IMAGES/bvh_stress_test.2025-10-08_01-25-28z.580samp.png" alt="OBJ BVH scene" width="45%" />
+</p>
+
+### Stream Compaction
+As I have mentioned a few times now, one area for optimization is in culling "dead" rays so that we don't use threads to calculate nothing. For this, we can use stream compaction. Stream compaction is a parallel way of doing a linear search through an array and removing unwanted elements while shifting all the other elements downwards so they are continuous in the array. We can take advantage of this algorithm to efficiently remove these useless path segments each bounce. For this, I use `thrust::partition` to separate paths into two groups: those still alive (`remainingBounces > 0`) and those that have finished. The partition operation is stable and efficient, rearranging the path array in-place so all active paths are packed at the front. We then update the path count to reflect only the active paths, and subsequent bounces operate on this smaller buffer. For a closed scene with only a few lights, this will have a minimum effect. However, the real advantage comes when you have a very open scene. Since many of the rays will go of into empty space and terminate just after the first bounce, at each iteration, many of our rays will beocme usless. By dynamically culling them, we can drastically reduce the amount of wasted kernel calls resulting in much faster renders. 
+
+### Material 
 
 # Performance Analysis
 
