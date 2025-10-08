@@ -117,22 +117,86 @@ During integration, we check for three outcomes:
 
 **Accretion Disk Sampling:**
 
- After each step our ray inside the gravitation field takes, I check if it passes our accretion disk's plane. If so, I find where between the current position and the last position it crosses this plane. Using that 2D coordinate, I sample a simple perlin noise function and then swirl the result based on the radius from the center very similarly to the technique I used in this past black hole project: [black hole shader work](https://siwel-cg.github.io/siwel.cg_websiteV1/projects/BlackHole.html). This gives the spiralling look without having to incorperate any actual motion into the black hole math. This noise is combined with a fall off of the radius to get a final value which I use to stochastically determine if a ray should stop and apply the emmited color to the path or continue going, passing through the accretion disk. This stochastic approach means some rays pass through the disk while others are absorbed, naturally creating the wispy, turbulent appearance of the accretion material. Although slightly ineficient, since to get a smooth, converged opacity you need to trace many rays, with this wavefront setup, this was the only way I could think of to do any sort of partial alpha effect. 
+After each step our ray inside the gravitation field takes, I check if it passes our accretion disk's plane. If so, I find where between the current position and the last position it crosses this plane. Using that 2D coordinate, I sample a simple perlin noise function and then swirl the result based on the radius from the center very similarly to the technique I used in this past black hole project: [black hole shader work](https://siwel-cg.github.io/siwel.cg_websiteV1/projects/BlackHole.html). This gives the spiralling look without having to incorperate any actual motion into the black hole math. This noise is combined with a fall off of the radius to get a final value which I use to stochastically determine if a ray should stop and apply the emmited color to the path or continue going, passing through the accretion disk. This stochastic approach means some rays pass through the disk while others are absorbed, naturally creating the wispy, turbulent appearance of the accretion material. Although slightly ineficient, since to get a smooth, converged opacity you need to trace many rays, with this wavefront setup, this was the only way I could think of to do any sort of partial alpha effect. 
 
- The best part about doingan accretion disk procedurally is that it is really easy to control the final visual output of the black hole. By varying some paramters in the noise functions, I can get different swirl intensities and densities of the disk.
-
-The beauty of this approach is modularity. From the path tracer's perspective, hitting a black hole is just another material evaluation, it updates the ray state and returns. Rays that escape continue bouncing through the scene normally, allowing the black hole to seamlessly composite with standard geometry and materials.
+The best part about doing an accretion disk procedurally is that it is really easy to control the final visual output of the black hole. By varying some paramters in the noise functions, I can get different swirl intensities and densities of the disk. The nice thing about this approach is its modularity. From the path tracer's perspective, hitting a black hole is just another material evaluation, it updates the ray state and returns. Rays that escape continue bouncing through the scene normally, allowing the black hole to seamlessly composite with standard geometry and materials.
 
 **A Quick Note On Efficency**
 
 I will have more details and FPS analysis later on, but it should be intuitive that marching along a path is significantly slower than a simple mirror or diffuse bouce computation. This means that the treads for paths going through the black hole take longer than the threads who don't. At each wavefront iteration we need to sync up all the threads which means those quicker threads will have to wait. One optimization that helps with this is sorting by material type and making them contiguous in meory (this is part of the reason why I implemented this black holes as a material). I didn't really implement any other GPU specific optimizations for this, but one could be doing stream compaction for substep of our walk, similar to what we do for the actuall path segments. Even though, particularly for open scenes, the light distortion basically was real time, in close scenes where many paths bounce in and out of the black hole multiple times, it can have a significant performance impact. Most of my scenes and testing involved just 1 or 2 black holes, but if you have a scene with many, the same problem could occure. Using RK4 and updating time steps certainly does help with efficency, but future work could be done to take advantage of the parallel architecture even more for better results. 
 
+# Visual Improvements
+Besides this flashy black hole shader, I implemented a few other featurs which help to enhanse the effect of the black hole or overall just allows for more interesting visuals. The first being Bloom.
+
+### Bloom
+Bloom is a post process effect which adds an artificial glow to parts of the image which pass a certain birightness threshold. We naturally get this effect due to light bouncing around in our eye, but in a simulated world without an actual participating media for the light rays to travel to, this effect doesn't happen. But we can fake it in post. After the full image calculation has be run and we average the light values for all the rays of an iteration, we then do pass on each pixel and determine if it passes this light threshold, keeping only the ones that pass. From there, to get the glow effect, we blur this light filter using a Gaussian blur. In my implementation I used a 21x21 kernel, but the strength of the blur can be adjusted as needed. This blurred pass is then added back to our original image, giving it an angelic glowing effect. Particularly for the black hole, this makes quite the difference:
+
+<p align="center">
+  <img src="IMAGES/singleBH_V1.2025-10-04_03-01-39z.593samp.png" alt="No Bloom" width="45%" />
+  <img src="IMAGES/singleBH_V1.2025-10-04_03-03-55z.950samp.png" alt="Bloom" width="45%" />
+</p>
+
+### Environment Mapping
+
+To light scenes with realistic outdoor lighting, as well as test my black hole distortin, I implemented HDR environment map support. An environment map is essentially an image wrapped around the scene at infinite distance, providing both illumination and background imagery. When a ray fails to intersect any geometry in the scene, rather than returning black, we sample the environment map based on the ray's direction. The ray direction (a 3D vector) is converted to spherical coordinates theta (azimuthal angle) and phi (polar angle) which map to UV coordinates on the environment texture:
+
+$$u = \frac{1}{2} + \frac{\arctan2(d_z, d_x)}{2\pi}, \quad v = \frac{1}{2} - \frac{\arcsin(d_y)}{\pi}$$
+
+Where $\mathbf{d}$ is the normalized ray direction. This spherical mapping allows a 2D image to represent all possible incoming light directions.
+
+The environment map integrates naturally into the path tracing pipeline: it's simply another potential light source. Rays accumulate color from environment lighting just like they would from any emissive surface, and the map's contribution is weighted by the path's current throughput.
+
+<p align="center">
+  <img src="IMAGES/compaction_test.2025-09-23_14-55-01z.5000samp.png" alt="No Environment Map" width="45%" />
+  <img src="IMAGES/compaction_test.2025-09-26_14-23-01z.3240samp.png" alt="Environment Map" width="45%" />
+</p>
+
+### Thin Lense Depth Of Field
+
+Real cameras have finite apertures, creating a depth of field effect where objects at the focal distance appear sharp while objects closer or farther away become progressively blurred. I implemented this using a thin lens camera model. Unlike a pinhole camera where every ray passes through a single point (keeping everything in perfect focus), a thin lens has an aperture with non-zero radius. Rays originating from different points on the lens converge at the focal plane but diverge elsewhere, creating blur.
+
+<p align="center">
+  <a href="IMAGES/Thin_Lens.png">
+    <img src="IMAGES/Thin_Lens.png" alt="Thin Lense" width="600" />
+  </a>
+</p>
+
+The implementation samples random points on the circular lens aperture using concentric disk sampling, then adjusts each ray's direction so it passes through the same point on the focal plane that the original ray (from the lens center) would have hit. Over many frames, rays from different lens positions average together points at the focal distance receive consistent samples and appear sharp, while points at other depths receive divergent samples, creating blur proportional to their distance from the focal plane. The effect is controlled by two parameters: lens radius (aperture size, where larger means stronger blur) and focal distance (which depth appears sharp).
+
+<p align="center">
+  <img src="img/dof_comparison.2025-10-08_00-13-16z.5000samp.png" alt="Focus on foreground" width="45%" />
+  <img src="img/dof_comparison.2025-10-08_00-10-07z.5000samp.png" alt="Focus on middle ground" width="45%" />
+</p>
+
+### Stochastic Anti-Aliasing
+
+Similarly to how we scattered ray origins across the lens aperture to achieve depth of field, we can apply the same stochastic sampling principle to eliminate aliasing. Instead of casting rays through the exact center of each pixel, we jitter the ray origin randomly within the pixel's area. Without this, rendered images suffer from jagged edges where object boundaries don't align perfectly with pixel centers causing a "staircase" like artifact. Each frame uses a different random offset within the pixel, so over many iterations the samples average across the entire pixel area. Edges that partially cover a pixel receive proportionally mixed colors, naturally producing the correct blended color. This approach requires no special edge detection or additional samples per frame, unlike what you would need for a rasterize. The anti-aliasing emerges automatically from the same Monte Carlo integration that drives the path tracing itself.
+
+<p align="center">
+  <img src="IMAGES/cornell.2025-10-08_00-20-55z.2110samp.png" alt="Anti-aliasing comparison" width="600" />
+</p>
+
+# Performance Improvements
 
 
+# Performance Analysis
 
+# Bloopers
+<p align="center">
+  <img src="IMAGES/cornell.2025-10-03_20-11-58z.634samp.png" alt="Blooper 1" width="600" />
+</p>
 
+<p align="center">
+  <img src="IMAGES/cornell.2025-10-03_20-22-33z.363samp.png" alt="Blooper 2" width="600" />
+</p>
 
+<p align="center">
+  <img src="IMAGES/cornell.2025-10-04_00-38-55z.35samp.png" alt="BLOOMper 3" width="600" />
+</p>
 
+<p align="center">
+  <img src="IMAGES/singleBH_V1.2025-10-03_01-23-23z.164samp.png" alt="BLOOMper 3" width="600" />
+</p>
 
 # References
 - https://henrikdahlberg.github.io/2016/08/23/stream-compaction.html
@@ -146,3 +210,4 @@ I will have more details and FPS analysis later on, but it should be intuitive t
 - https://github.com/tinyobjloader/tinyobjloader/tree/release
 - https://free3d.com/3d-model/hand-v3--902450.html
 - https://www.spacespheremaps.com/hdr-spheremaps/
+- https://pbr-book.org/3ed-2018/Camera_Models/Realistic_Cameras

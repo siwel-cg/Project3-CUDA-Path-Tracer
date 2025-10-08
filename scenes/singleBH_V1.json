@@ -4,8 +4,8 @@
         "blackhole":
         {
             "TYPE":"BlackHole",
-            "RGB": [0.8, 0.2, 0.05],
-            "EMITTANCE":15.0,
+            "RGB": [0.8, 0.3, 0.9],
+            "EMITTANCE":10.0,
             "ROUGHNESS":1.0,
             "INNERRAD": 1.0, 
             "OUTERRAD": 16.0
@@ -29,7 +29,7 @@
         "ITERATIONS":5000,
         "DEPTH":8,
         "FILE":"singleBH_V1",
-        "EYE":[0.0,0.0,18.0],
+        "EYE":[0.0,-5.0,18.0],
         "LOOKAT":[0.0,0.0,0.0],
         "UP":[0.0,1.0,0.0]
     },

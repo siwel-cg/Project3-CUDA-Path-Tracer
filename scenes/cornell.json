@@ -35,12 +35,12 @@
     },
     "Camera":
     {
-        "RES":[800,800],
+        "RES":[400,400],
         "FOVY":45.0,
         "ITERATIONS":5000,
-        "DEPTH":32,
+        "DEPTH":24,
         "FILE":"cornell",
-        "EYE":[0.0,5.0,10.5],
+        "EYE":[0.0,5.0,4.5],
         "LOOKAT":[0.0,5.0,0.0],
         "UP":[0.0,1.0,0.0]
     },
@@ -93,7 +93,14 @@
             "MATERIAL":"diffuse_white",
             "TRANS":[-1.0,4.0,-1.0],
             "ROTAT":[0.0,0.0,0.0],
-            "SCALE":[3.0,3.0,3.0]
+            "SCALE":[5.0,5.0,5.0]
+        },
+        {
+            "TYPE":"sphere",
+            "MATERIAL":"specular_white",
+            "TRANS":[2.0,2.0,2.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[2.0,2.0,2.0]
         }
     ]
 }
