@@ -7,7 +7,7 @@ CUDA Path Tracer
 * [Personal Website](https://siwel-cg.github.io/siwel.cg_websiteV1/index.html#home), [LinkedIn](https://www.linkedin.com/in/lewis-ghrist-4b1b3728b/)
 * Tested on: Windows 11, AMD Ryzen 9 5950X 16-Core Processor, 64GB, NVIDIA GeForce RTX 3080 10GB
 
-# Renders (MORE TO COME)
+# Renders
 <p align="center">
   <img src= "IMAGES/blackhole_mirrors.2025-10-08_03-18-09z.2523samp.png" alt="Dark Scene" width="95%"/>
 </p>
