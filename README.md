@@ -9,16 +9,16 @@ CUDA Path Tracer
 
 # Renders (MORE TO COME)
 <p align="center">
-  <img src= "IMAGES/blackhole_mirrors.2025-10-08_03-18-09z.2523samp.png" alt="Dark Scene" width="60%"/>
+  <img src= "IMAGES/blackhole_mirrors.2025-10-08_03-18-09z.2523samp.png" alt="Dark Scene" width="95%"/>
 </p>
 <p align="center">
-  <img src= "IMAGES/blackhole_mirrors.2025-10-08_03-24-26z.3236samp.png" alt="Bright Scene" width="60%"/>
+  <img src= "IMAGES/blackhole_mirrors.2025-10-08_03-24-26z.3236samp.png" alt="Bright Scene" width="95%"/>
 </p>
 <p align="center">
-  <img src= "IMAGES/singleBH_V1.2025-10-05_17-56-29z.437samp.png" alt="Hand" width="60%"/>
+  <img src= "IMAGES/singleBH_V1.2025-10-05_17-56-29z.437samp.png" alt="Hand" width="85%"/>
 </p>
 <p align="center">
-  <img src= "IMAGES/singleBH_V1.2025-10-04_03-03-55z.950samp.png" alt="Clean pink ring and lensing" width="60%"/>
+  <img src= "IMAGES/singleBH_V1.2025-10-04_03-03-55z.950samp.png" alt="Clean pink ring and lensing" width="85%"/>
 </p>
 
 # Overview
@@ -209,10 +209,51 @@ BVH is what made object loading possible. Even though for small scenes, the over
   <img src="IMAGES/BVH Graph.png" alt="Stream Compaction 1" width="600" />
 </p>
 
+### Black Holes
+Since a black hole thread takes much longer than a regular thread, I also tested scenes with multiple black holes. For simplicity, I had just black holes in a completely open scene so that random bounces from diffuse surfaces wouldn't alter any results. Although, as expected, the results get worse the more black holes there are, I was plesently supprised. Even with 128 black holes I was still getting around 44 fps, which not too bad. 
+
+<p align="center">
+  <img src="IMAGES/BH Graph.png" alt="Blooper 1" width="600" />
+</p>
+
+Here is what it looked like with 128 black holes:
+
+<p align="center">
+  <img src="IMAGES/onetwentyeightBH.2025-10-08_03-39-12z.4079samp.png" alt="Blooper 1" width="600" />
+</p>
+
 ### Material Sorting
 Although in some cases, sorting the segments based on terial would help reduce warp divergence and speed up render times, I found that my scenes never had enough materials to make this worth while. In fact, across all my scenes, there was a consistent drop in performance when I did sort the paths. My focus for this path tracer wasn't a vast amount of nice PBR materials with many different effects so although I implemented it as a future optimization for when I do increase the number of material types, for now, I found its more harmful than helpful. 
 
-# Bloopers
+--- 
+
+# Conclusion
+Overall I was very happy with how this project turned out. The light bending and black holes, in my opinion, look really nice and render pretty quickly. As for some of the other implemented features, there is always room for improvement. First off, some things are kind of buggy and there are a few messy parts of the code I want to go back and clean up. Additionally I would like to add support for more types of materials including Transmisive materials, Sub Surface Scattering, and maybe volumes. Some better UI and parameters would also be really helpful for loading models, scenes, and environment maps. As a final send off, here are some more random renders I took through out the process of working on this project.
+
+<p align="center">
+  <img src="IMAGES/space_scene_bh.2025-10-03_03-30-06z.221samp.png" alt="S" width="45%" />
+  <img src="IMAGES/space_scene_bh.2025-10-03_03-31-17z.407samp.png" alt="O" width="45%" />
+</p>
+
+<p align="center">
+  <img src="IMAGES/blackhole_bvh_test.2025-10-05_02-25-49z.537samp.png" alt="U" width="45%" />
+  <img src="IMAGES/blackhole_bvh_test.2025-10-05_02-39-31z.775samp.png" alt="Y" width="45%" />
+</p>
+
+<p align="center">
+  <img src="IMAGES/singleBH_V1.2025-10-03_01-06-49z.476samp.png" alt="Q" width="45%" />
+  <img src="IMAGES/singleBH_V1.2025-10-03_01-32-37z.524samp.png" alt="W" width="45%" />
+</p>
+
+<p align="center">
+  <img src="IMAGES/singleBH_V1.2025-10-05_16-53-14z.97samp.png" alt="OBJ BVH scene" width="85%" />
+</p>
+
+<p align="center">
+  <img src="IMAGES/cornell.2025-09-24_00-09-51z.247samp.png" alt="OBJ BVH scene" width="85%" />
+</p>
+
+### Bloopers
 These are just some wild renderes I got while trying to implement some of these features.
 <p align="center">
   <img src="IMAGES/cornell.2025-10-03_20-11-58z.634samp.png" alt="Blooper 1" width="600" />
